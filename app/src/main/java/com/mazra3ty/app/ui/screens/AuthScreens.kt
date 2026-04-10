@@ -165,20 +165,23 @@ fun OnboardingScreen(onContinue: () -> Unit) {
 
                 Spacer(Modifier.height(24.dp))
 
-                GreenEmailField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = "Enter your email",
-                    onDone = { if (email.isNotBlank()) onContinue() }
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onContinue() }
+                ) {
+                    GreenEmailField(
+                        value = "",
+                        onValueChange = {},
+                        placeholder = "Enter your email",
+                        onDone = {},
+                        readOnly = true,
+                        enabled = false
+                    )
+                }
 
                 Spacer(Modifier.height(16.dp))
 
-                GreenButton(
-                    text = "Get Started",
-                    enabled = email.isNotBlank(),
-                    icon = Icons.Outlined.ArrowForward
-                ) { onContinue() }
             }
         }
     }
@@ -614,47 +617,6 @@ fun GreenButton(
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "btn_scale"
     )
-
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp)
-            .scale(scale),
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = GreenPrimary,
-            disabledContainerColor = GreenLight.copy(alpha = 0.45f)
-        ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 2.dp,
-            disabledElevation = 0.dp
-        )
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
-                ),
-                color = Color.White
-            )
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
 }
 
 /** Email input with envelope icon */
@@ -663,7 +625,9 @@ fun GreenEmailField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    onDone: () -> Unit = {}
+    onDone: () -> Unit = {},
+    readOnly: Boolean = false,
+    enabled:Boolean = true
 ) {
     OutlinedTextField(
         value = value,
@@ -672,6 +636,8 @@ fun GreenEmailField(
         placeholder = {
             Text(placeholder, color = GrayMedium, style = MaterialTheme.typography.bodyMedium)
         },
+        readOnly=readOnly,
+        enabled=enabled,
         leadingIcon = {
             Icon(
                 imageVector = Icons.Outlined.Email,
