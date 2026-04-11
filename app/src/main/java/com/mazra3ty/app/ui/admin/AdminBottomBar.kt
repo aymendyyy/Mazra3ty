@@ -15,10 +15,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.ui.theme.GreenPrimary
 import com.mazra3ty.app.ui.theme.GreenPrimaryDark
+import com.mazra3ty.app.ui.theme.Mazra3tyTheme
 
 // ─── Model ───────────────────────────────────────────────────────────────────
 
@@ -108,3 +110,13 @@ fun AdminBottomBar(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+fun AdminBottomBarPreview() {
+    Mazra3tyTheme {
+        AdminBottomBar(
+            currentRoute = AdminScreen.Dashboard.route,
+            onNavigate = {}
+        )
+    }
+}

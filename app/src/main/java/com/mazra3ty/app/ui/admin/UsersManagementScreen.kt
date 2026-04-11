@@ -26,12 +26,23 @@ import com.mazra3ty.app.database.types.User
 import com.mazra3ty.app.ui.theme.GreenPrimary
 import com.mazra3ty.app.ui.theme.GreenPrimaryDark
 import com.mazra3ty.app.ui.theme.RedError
+import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.launch
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
-
+suspend fun softDeleteUser(userId: String) {
+    SupabaseClientProvider.client
+        .from("users")
+        .update(
+            mapOf(
+                "is_deleted" to true
+            )
+        ) {
+            filter { eq("id", userId) }
+        }
+}
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsersManagementScreen(
@@ -52,7 +63,7 @@ fun UsersManagementScreen(
         scope.launch {
             try {
                 users = SupabaseClientProvider.client
-                    .postgrest["users"]
+                    .postgrest["active_users"]
                     .select()
                     .decodeList<User>()
             } catch (e: Exception) {
@@ -187,18 +198,9 @@ fun UsersManagementScreen(
                                     scope.launch {
                                         try {
                                             SupabaseClientProvider.client
-                                                .postgrest["users"]
-                                                .update(
-                                                    mapOf(
-                                                        "is_banned" to isBanned,
-                                                        "banned_at" to if (isBanned) java.time.Instant.now().toString() else null,
-                                                        "banned_reason" to if (isBanned) "Banned by admin" else null
-                                                    )
-                                                ) {
-                                                    filter {
-                                                        eq("id", user.id)
-                                                    }
-                                                }
+                                                .postgrest["active_users"]
+                                                .select()
+                                                .decodeList<User>()
                                             // Update local list
                                             users = users.map {
                                                 if (it.id == user.id) it.copy(is_banned = isBanned) else it
@@ -228,12 +230,11 @@ fun UsersManagementScreen(
                     onClick = {
                         scope.launch {
                             try {
-                                SupabaseClientProvider.client
-                                    .postgrest["users"]
-                                    .delete {
-                                        filter { eq("id", user.id) }
-                                    }
+                                softDeleteUser(user.id)
+
+                                // remove from UI (simulate deletion)
                                 users = users.filter { it.id != user.id }
+
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             } finally {

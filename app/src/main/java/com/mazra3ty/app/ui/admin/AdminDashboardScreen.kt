@@ -52,7 +52,7 @@ fun AdminDashboardScreen(
         scope.launch {
             try {
                 val users = SupabaseClientProvider.client
-                    .postgrest["users"].select().decodeList<User>()
+                    .postgrest["active_users"].select().decodeList<User>()
                 val jobs = SupabaseClientProvider.client
                     .postgrest["jobs"].select().decodeList<Job>()
                 val reviews = SupabaseClientProvider.client

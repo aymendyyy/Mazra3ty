@@ -1,5 +1,6 @@
 package com.mazra3ty.app.ui.screens
 
+import android.util.Log
 import androidx.compose.ui.tooling.preview.Preview
 import com.mazra3ty.app.R
 import androidx.compose.animation.*
@@ -17,7 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.*
-import androidx.compose.ui.focus.*
+import io.github.jan.supabase.postgrest.from
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -34,11 +35,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mazra3ty.app.database.SupabaseClientProvider
+import com.mazra3ty.app.ui.admin.AdminDashboardScreen
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -48,6 +52,13 @@ import kotlinx.serialization.json.put
 // Flow B (new user):      ONBOARDING → LOGIN → REGISTER → OTP → HOME
 // ─────────────────────────────────────────────────────────────────────────────
 enum class AuthStep { ONBOARDING, LOGIN, REGISTER, OTP ,HOME}
+@Serializable
+data class UserDto(
+    val id: String,
+    val email: String? = null,
+    val role: String? = "worker",
+    val is_deleted: Boolean? = false
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Root host
@@ -62,23 +73,47 @@ fun AuthHost() {
     val client = SupabaseClientProvider.client
     val scope  = rememberCoroutineScope()
 
-    // 🔥 CHECK SESSION عند تشغيل التطبيق
+
     LaunchedEffect(Unit) {
         val user = client.auth.currentUserOrNull()
 
         if (user != null) {
+
             userEmail = user.email ?: ""
-            userRole  = user.userMetadata
-                ?.get("role")
-                ?.toString()
-                ?.trim('"') ?: "worker"
+
+            try {
+                val users = client
+                    .from("users")
+                    .select {
+                        filter {
+                            eq("id", user.id)
+                            eq("is_deleted", false)
+                        }
+                    }
+                    .decodeAs<List<UserDto>>()
+
+                val userData = users.firstOrNull()
+                if (userData == null) {
+                    // user is deleted
+                    client.auth.signOut()
+                    step = AuthStep.LOGIN
+                    return@LaunchedEffect
+                }
+                userRole = userData?.role ?: "worker"
+
+                Log.d("AUTH_DEBUG", "ROLE FROM DB = $userRole")
+
+            } catch (e: Exception) {
+                Log.e("AUTH_DEBUG", "ERROR = ${e.message}")
+                userRole = "worker"
+            }
 
             step = AuthStep.HOME
+
         } else {
             step = AuthStep.ONBOARDING
         }
     }
-
     // 🔄 Loading state (أثناء التحقق من session)
     if (step == null) {
         Box(
@@ -150,15 +185,13 @@ fun AuthHost() {
             )
 
             // ───────── HOME (🔥 المهم) ─────────
-            AuthStep.HOME -> WorkerDashboard(
-                userEmail = userEmail,
-                onLogout = {
-                    scope.launch {
-                        client.auth.signOut() // 🔥 يمسح session
-                        step = AuthStep.LOGIN
-                    }
-                }
-            )
+            AuthStep.HOME -> {
+                HomeScreen(
+                    userEmail = userEmail,
+                    userRole  = userRole,
+                    onLogout  = { scope.launch { client.auth.signOut(); step = AuthStep.LOGIN } }
+                )
+            }
         }
     }
 }
@@ -312,9 +345,17 @@ fun LoginScreen(
                     this.email    = email.trim()
                     this.password = password
                 }
-                val meta = client.auth.currentUserOrNull()?.userMetadata
-                val role = meta?.get("role")?.toString()?.trim('"') ?: "worker"
-                onLoginSuccess(email.trim(), role)
+                val user = client.auth.currentUserOrNull()
+                if (user != null) {
+                    val users = client
+                        .from("users")
+                        .select { filter { eq("id", user.id) } }
+                        .decodeAs<List<UserDto>>()
+                    val role = users.firstOrNull()?.role ?: "worker"
+                    onLoginSuccess(email.trim(), role)
+                } else {
+                    error = "Sign-in failed. Please try again."
+                }
             } catch (e: Exception) {
                 error = when {
                     e.message?.contains("Invalid login", ignoreCase = true) == true -> "Incorrect email or password"
