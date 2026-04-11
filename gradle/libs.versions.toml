@@ -13,6 +13,7 @@ composeBom = "2024.09.00"
 supabase = "3.5.0"
 ktor = "3.4.2"
 serialization = "1.7.3"
+ui = "1.10.6"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
@@ -43,6 +44,7 @@ ktor-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "ui" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
