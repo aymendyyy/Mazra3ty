@@ -32,7 +32,6 @@ import kotlinx.coroutines.launch
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminDashboardScreen(
     onNavigate: (String) -> Unit,
@@ -40,13 +39,13 @@ fun AdminDashboardScreen(
 ) {
     val scope = rememberCoroutineScope()
 
-    var totalUsers by remember { mutableStateOf(0) }
-    var bannedUsers by remember { mutableStateOf(0) }
-    var totalJobs by remember { mutableStateOf(0) }
-    var openJobs by remember { mutableStateOf(0) }
-    var totalReviews by remember { mutableStateOf(0) }
+    var totalUsers       by remember { mutableStateOf(0) }
+    var bannedUsers      by remember { mutableStateOf(0) }
+    var totalJobs        by remember { mutableStateOf(0) }
+    var openJobs         by remember { mutableStateOf(0) }
+    var totalReviews     by remember { mutableStateOf(0) }
     var totalApplications by remember { mutableStateOf(0) }
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoading        by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -60,11 +59,11 @@ fun AdminDashboardScreen(
                 val applications = SupabaseClientProvider.client
                     .postgrest["applications"].select().decodeList<Application>()
 
-                totalUsers = users.size
-                bannedUsers = users.count { it.is_banned }
-                totalJobs = jobs.size
-                openJobs = jobs.count { it.status == "open" }
-                totalReviews = reviews.size
+                totalUsers        = users.size
+                bannedUsers       = users.count { it.is_banned }
+                totalJobs         = jobs.size
+                openJobs          = jobs.count { it.status == "open" }
+                totalReviews      = reviews.size
                 totalApplications = applications.size
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -74,34 +73,8 @@ fun AdminDashboardScreen(
         }
     }
 
+    // ── No topBar here — the shared AdminTopBar lives in AdminHome's Scaffold ──
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Admin Panel", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("Mazra3ty", fontSize = 12.sp, color = GreenPrimary)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onLogout) {
-                        Icon(Icons.Outlined.ExitToApp, "Logout", tint = RedError)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(GreenPrimary.copy(alpha = 0.15f))
-                            .border(1.dp, GreenPrimary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Outlined.AdminPanelSettings, null, tint = GreenPrimary)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
         containerColor = Color(0xFFF5F5F5)
     ) { padding ->
 
@@ -123,37 +96,33 @@ fun AdminDashboardScreen(
 
             // ── Welcome banner ─────────────────────────────────────────────
             Card(
-                shape = RoundedCornerShape(20.dp),
+                shape  = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = GreenPrimary),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.padding(20.dp),
+                    modifier          = Modifier.padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Welcome back 👋",
-                            color = Color.White.copy(alpha = 0.85f),
-                            fontSize = 13.sp
-                        )
+                        Text("Welcome back 👋", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
                         Text(
                             "Administrator",
-                            color = Color.White,
+                            color      = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
+                            fontSize   = 20.sp
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "$totalUsers total users · $openJobs open jobs",
-                            color = Color.White.copy(alpha = 0.75f),
+                            color    = Color.White.copy(alpha = 0.75f),
                             fontSize = 12.sp
                         )
                     }
                     Icon(
                         Icons.Outlined.Agriculture,
                         null,
-                        tint = Color.White.copy(alpha = 0.4f),
+                        tint     = Color.White.copy(alpha = 0.4f),
                         modifier = Modifier.size(64.dp)
                     )
                 }
@@ -165,20 +134,20 @@ fun AdminDashboardScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.People,
-                    label = "Users",
-                    value = totalUsers.toString(),
-                    sub = "$bannedUsers banned",
-                    iconBg = GreenPrimary.copy(alpha = 0.12f),
+                    icon     = Icons.Outlined.People,
+                    label    = "Users",
+                    value    = totalUsers.toString(),
+                    sub      = "$bannedUsers banned",
+                    iconBg   = GreenPrimary.copy(alpha = 0.12f),
                     iconTint = GreenPrimary
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.Work,
-                    label = "Jobs",
-                    value = totalJobs.toString(),
-                    sub = "$openJobs open",
-                    iconBg = Color(0xFFE3F2FD),
+                    icon     = Icons.Outlined.Work,
+                    label    = "Jobs",
+                    value    = totalJobs.toString(),
+                    sub      = "$openJobs open",
+                    iconBg   = Color(0xFFE3F2FD),
                     iconTint = Color(0xFF1E88E5)
                 )
             }
@@ -186,20 +155,20 @@ fun AdminDashboardScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.Star,
-                    label = "Reviews",
-                    value = totalReviews.toString(),
-                    sub = "total ratings",
-                    iconBg = Color(0xFFFFF8E1),
+                    icon     = Icons.Outlined.Star,
+                    label    = "Reviews",
+                    value    = totalReviews.toString(),
+                    sub      = "total ratings",
+                    iconBg   = Color(0xFFFFF8E1),
                     iconTint = Color(0xFFFFC107)
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    icon = Icons.Outlined.Assignment,
-                    label = "Applications",
-                    value = totalApplications.toString(),
-                    sub = "total",
-                    iconBg = Color(0xFFFCE4EC),
+                    icon     = Icons.Outlined.Assignment,
+                    label    = "Applications",
+                    value    = totalApplications.toString(),
+                    sub      = "total",
+                    iconBg   = Color(0xFFFCE4EC),
                     iconTint = Color(0xFFE91E63)
                 )
             }
@@ -208,11 +177,11 @@ fun AdminDashboardScreen(
             Text("Quick Access", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = TextPrimary)
 
             listOf(
-                Triple(Icons.Outlined.People,        "Manage Users",      AdminScreen.Users.route),
-                Triple(Icons.Outlined.Work,           "Monitor Jobs",      AdminScreen.Ads.route),
-                Triple(Icons.Outlined.RateReview,     "Monitor Reviews",   AdminScreen.Reviews.route),
-                Triple(Icons.Outlined.BarChart,       "Statistics",        AdminScreen.Statistics.route),
-                Triple(Icons.Outlined.Description,    "Reports",           AdminScreen.Reports.route),
+                Triple(Icons.Outlined.People,     "Manage Users",    AdminScreen.Users.route),
+                Triple(Icons.Outlined.Work,        "Monitor Jobs",    AdminScreen.Ads.route),
+                Triple(Icons.Outlined.RateReview,  "Monitor Reviews", AdminScreen.Reviews.route),
+                Triple(Icons.Outlined.BarChart,    "Statistics",      AdminScreen.Statistics.route),
+                Triple(Icons.Outlined.Description, "Reports",         AdminScreen.Reports.route),
             ).forEach { (icon, label, route) ->
                 QuickAccessRow(icon = icon, label = label, onClick = { onNavigate(route) })
             }
@@ -227,25 +196,22 @@ fun AdminDashboardScreen(
 @Composable
 private fun StatCard(
     modifier: Modifier = Modifier,
-    icon: ImageVector,
-    label: String,
-    value: String,
-    sub: String,
-    iconBg: Color,
+    icon:     ImageVector,
+    label:    String,
+    value:    String,
+    sub:      String,
+    iconBg:   Color,
     iconTint: Color
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.2f)),
+        shape    = RoundedCornerShape(16.dp),
+        colors   = CardDefaults.cardColors(containerColor = Color.White),
+        border   = androidx.compose.foundation.BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.2f)),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(iconBg),
+                modifier         = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(iconBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, null, tint = iconTint, modifier = Modifier.size(22.dp))
@@ -253,7 +219,7 @@ private fun StatCard(
             Spacer(Modifier.height(10.dp))
             Text(value, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = TextPrimary)
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-            Text(sub, fontSize = 11.sp, color = GrayMedium)
+            Text(sub,   fontSize = 11.sp, color = GrayMedium)
         }
     }
 }
@@ -262,27 +228,22 @@ private fun StatCard(
 
 @Composable
 private fun QuickAccessRow(
-    icon: ImageVector,
-    label: String,
+    icon:    ImageVector,
+    label:   String,
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.25f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
+        shape    = RoundedCornerShape(14.dp),
+        colors   = CardDefaults.cardColors(containerColor = Color.White),
+        border   = androidx.compose.foundation.BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            modifier          = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(GreenPrimary.copy(alpha = 0.1f)),
+                modifier         = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(GreenPrimary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
@@ -294,4 +255,12 @@ private fun QuickAccessRow(
     }
 }
 
+// ─── Preview ──────────────────────────────────────────────────────────────────
 
+@Preview(showBackground = true)
+@Composable
+fun AdminDashboardPreview() {
+    Mazra3tyTheme {
+        AdminDashboardScreen(onNavigate = {}, onLogout = {})
+    }
+}

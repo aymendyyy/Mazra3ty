@@ -1,71 +1,107 @@
 package com.mazra3ty.app.ui.admin
 
+import androidx.compose.animation.AnimatedVisibility
+import coil.compose.AsyncImage
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.User
+import com.mazra3ty.app.database.types.UserImage
 import com.mazra3ty.app.ui.theme.GreenPrimary
 import com.mazra3ty.app.ui.theme.GreenPrimaryDark
+import com.mazra3ty.app.ui.theme.Mazra3tyTheme
 import com.mazra3ty.app.ui.theme.RedError
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.launch
 
+// ─── User section tabs ────────────────────────────────────────────────────────
+
+private enum class UserTab { ACTIVE, DELETED }
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
-suspend fun softDeleteUser(userId: String) {
-    SupabaseClientProvider.client
-        .from("users")
-        .update(
-            mapOf(
-                "is_deleted" to true
-            )
-        ) {
-            filter { eq("id", userId) }
-        }
-}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UsersManagementScreen(
-    onBack: () -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    var users by remember { mutableStateOf<List<User>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var searchQuery by remember { mutableStateOf("") }
-    var filterRole by remember { mutableStateOf<String?>(null) } // null = all
+fun UsersManagementScreen(onBack: () -> Unit) {
+
+    val scope     = rememberCoroutineScope()
+    val isPreview = LocalInspectionMode.current
+
+    // ── Data ──────────────────────────────────────────────────────────────────
+    var activeUsers  by remember { mutableStateOf<List<User>>(emptyList()) }
+    var deletedUsers by remember { mutableStateOf<List<User>>(emptyList()) }
+    // userId → first image URL from user_images
+    var userImages   by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isLoading    by remember { mutableStateOf(true) }
+
+    // ── UI ────────────────────────────────────────────────────────────────────
+    var activeTab      by remember { mutableStateOf(UserTab.ACTIVE) }
+    var searchQuery    by remember { mutableStateOf("") }
+    var filterRole     by remember { mutableStateOf<String?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
+    var expandedUserId by remember { mutableStateOf<String?>(null) }
+    var userToDelete   by remember { mutableStateOf<User?>(null) }
 
-    // Delete dialog state
-    var userToDelete by remember { mutableStateOf<User?>(null) }
-
-    // ── Load users from Supabase ──────────────────────────────────────────────
+    // ── Load ──────────────────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
+        if (isPreview) {
+            // Preview mock data
+            activeUsers = listOf(
+                User("1", "Ahmed Farmer", "ahmed@test.com", "+213555000001", "farmer", is_banned = false),
+                User("2", "Sara Worker",  "sara@test.com",  "+213555000002", "worker", is_banned = true),
+                User("3", "Mohamed W.",   "med@test.com",   null,            "worker", is_banned = false)
+            )
+            deletedUsers = listOf(
+                User("4", "Deleted User", "del@test.com", null, "farmer",
+                    is_deleted = true, created_at = "2024-01-15T10:00:00Z")
+            )
+            isLoading = false
+            return@LaunchedEffect
+        }
+
         scope.launch {
             try {
-                users = SupabaseClientProvider.client
-                    .postgrest["active_users"]
-                    .select()
-                    .decodeList<User>()
+                // Active users (not deleted)
+                activeUsers = SupabaseClientProvider.client
+                    .from("users").select { filter { eq("is_deleted", false) } }
+                    .decodeList()
+
+                // Deleted users
+                deletedUsers = SupabaseClientProvider.client
+                    .from("users").select { filter { eq("is_deleted", true) } }
+                    .decodeList()
+
+                // Profile pictures: one image per user (first found)
+                val images: List<UserImage> = SupabaseClientProvider.client
+                    .postgrest["user_images"].select().decodeList()
+                userImages = images
+                    .groupBy { it.user_id }
+                    .mapValues { (_, list) -> list.first().image_url }
+
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -74,38 +110,19 @@ fun UsersManagementScreen(
         }
     }
 
-    // ── Filter logic ──────────────────────────────────────────────────────────
-    val filteredUsers = users.filter { user ->
-        val matchesSearch = user.full_name.contains(searchQuery, ignoreCase = true) ||
+    // ── Filtered lists ────────────────────────────────────────────────────────
+    fun List<User>.applyFilters() = filter { user ->
+        val matchSearch = user.full_name.contains(searchQuery, ignoreCase = true) ||
                 user.email?.contains(searchQuery, ignoreCase = true) == true
-        val matchesRole = filterRole == null || user.role == filterRole
-        matchesSearch && matchesRole
+        val matchRole   = filterRole == null || user.role == filterRole
+        matchSearch && matchRole
     }
 
-    // ── UI ────────────────────────────────────────────────────────────────────
+    val filteredActive  = activeUsers.applyFilters()
+    val filteredDeleted = deletedUsers.applyFilters()
+
+    // ── Scaffold ──────────────────────────────────────────────────────────────
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Manager Users",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
-                )
-            )
-        },
         containerColor = Color(0xFFF5F5F5)
     ) { padding ->
 
@@ -115,141 +132,244 @@ fun UsersManagementScreen(
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
+            Spacer(Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // ── Search + Filter Row ───────────────────────────────────────────
+            // ── Tab chips ─────────────────────────────────────────────────
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             ) {
-                // Search field
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search..", color = Color.Gray) },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Search, contentDescription = null, tint = Color.Gray)
-                    },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = GreenPrimary,
-                        unfocusedBorderColor = Color(0xFFDDDDDD),
-                        focusedContainerColor = Color(0xFFEEF7E8),
-                        unfocusedContainerColor = Color(0xFFEEF7E8)
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.weight(1f).height(52.dp)
-                )
+                UserTab.entries.forEach { tab ->
+                    val isSelected = activeTab == tab
+                    val (icon, label, count) = when (tab) {
+                        UserTab.ACTIVE  -> Triple(Icons.Outlined.People, "Active", activeUsers.size)
+                        UserTab.DELETED -> Triple(Icons.Outlined.PersonOff, "Deleted", deletedUsers.size)
+                    }
+                    val isDeleted = tab == UserTab.DELETED
 
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // Filter button
-                Box {
-                    IconButton(
-                        onClick = { showFilterMenu = true },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFEEF7E8))
-                            .border(1.dp, GreenPrimary, CircleShape)
-                    ) {
-                        Icon(Icons.Outlined.Tune, contentDescription = "Filter", tint = GreenPrimary)
+                    val backgroundColor = if (isSelected) {
+                        if (isDeleted) RedError else GreenPrimary
+                    } else {
+                        Color.White.copy(alpha = 0.9f)
                     }
 
-                    DropdownMenu(
-                        expanded = showFilterMenu,
-                        onDismissRequest = { showFilterMenu = false }
+                    val borderColor = if (isSelected) {
+                        if (isDeleted) RedError else GreenPrimary
+                    } else {
+                        Color(0xFFE0E0E0)
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(40.dp))
+                            .clickable {
+                                activeTab = tab
+                                expandedUserId = null
+                            },
+                        color = backgroundColor,
+                        shadowElevation = if (isSelected) 4.dp else 1.dp,
+                        tonalElevation = 0.dp
                     ) {
-                        listOf(null to "All", "worker" to "Workers", "farmer" to "Farmers").forEach { (role, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    filterRole = role
-                                    showFilterMenu = false
-                                }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                modifier = Modifier.size(18.dp),
+                                tint = if (isSelected) Color.White else Color.DarkGray
                             )
+
+                            Text(
+                                text = label,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else Color.DarkGray
+                            )
+
+                            Surface(
+                                color = if (isSelected)
+                                    Color.White.copy(alpha = 0.25f)
+                                else
+                                    Color.Gray.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text(
+                                    text = count.toString(),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color.White else Color.DarkGray,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
+            Spacer(Modifier.height(10.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // ── Search + Role filter ──────────────────────────────────────
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = searchQuery, onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search..", color = Color.Gray) },
+                    leadingIcon = { Icon(Icons.Outlined.Search, null, tint = Color.Gray) },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = GreenPrimary, unfocusedBorderColor = Color(0xFFDDDDDD),
+                        focusedContainerColor = Color(0xFFEEF7E8), unfocusedContainerColor = Color(0xFFEEF7E8)
+                    ),
+                    singleLine = true, modifier = Modifier.weight(1f).height(52.dp)
+                )
 
-            // ── Content ───────────────────────────────────────────────────────
+                Spacer(Modifier.width(10.dp))
+
+                Box {
+                    IconButton(
+                        onClick = { showFilterMenu = true },
+                        modifier = Modifier.size(48.dp).clip(CircleShape)
+                            .background(Color(0xFFEEF7E8)).border(1.dp, GreenPrimary, CircleShape)
+                    ) { Icon(Icons.Outlined.Tune, "Filter", tint = GreenPrimary) }
+
+                    DropdownMenu(expanded = showFilterMenu, onDismissRequest = { showFilterMenu = false }) {
+                        listOf(null to "All", "worker" to "Workers", "farmer" to "Farmers")
+                            .forEach { (role, label) ->
+                                DropdownMenuItem(
+                                    text    = { Text(label) },
+                                    onClick = { filterRole = role; showFilterMenu = false }
+                                )
+                            }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // ── Content ───────────────────────────────────────────────────
             when {
-                isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = GreenPrimary)
-                    }
+                isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = GreenPrimary)
                 }
-                filteredUsers.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No users found", color = Color.Gray)
-                    }
-                }
-                else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(filteredUsers, key = { it.id }) { user ->
-                            UserCard(
-                                user = user,
-                                onDelete = { userToDelete = user },
-                                onToggleBan = { isBanned ->
-                                    scope.launch {
-                                        try {
-                                            SupabaseClientProvider.client
-                                                .postgrest["active_users"]
-                                                .select()
-                                                .decodeList<User>()
-                                            // Update local list
-                                            users = users.map {
-                                                if (it.id == user.id) it.copy(is_banned = isBanned) else it
-                                            }
-                                        } catch (e: Exception) {
-                                            e.printStackTrace()
+
+                activeTab == UserTab.ACTIVE -> {
+                    if (filteredActive.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No active users found", color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(filteredActive, key = { it.id }) { user ->
+                                UserCard(
+                                    user        = user,
+                                    imageUrl    = userImages[user.id],
+                                    isExpanded  = expandedUserId == user.id,
+                                    isDeleted   = false,
+                                    onToggle    = { expandedUserId = if (expandedUserId == user.id) null else user.id },
+                                    onDelete    = { userToDelete = user },
+                                    onToggleBan = { shouldBan ->
+                                        scope.launch {
+                                            try {
+                                                SupabaseClientProvider.client
+                                                    .from("users")
+                                                    .update(mapOf("is_banned" to shouldBan,
+                                                        "banned_at" to if (shouldBan) "now()" else null)) {
+                                                        filter { eq("id", user.id) }
+                                                    }
+                                                activeUsers = activeUsers.map {
+                                                    if (it.id == user.id) it.copy(is_banned = shouldBan) else it
+                                                }
+                                            } catch (e: Exception) { e.printStackTrace() }
                                         }
                                     }
-                                }
-                            )
+                                )
+                            }
+                            item { Spacer(Modifier.height(16.dp)) }
                         }
-                        item { Spacer(modifier = Modifier.height(16.dp)) }
+                    }
+                }
+
+                else -> {
+                    if (filteredDeleted.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No deleted users found", color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(filteredDeleted, key = { it.id }) { user ->
+                                UserCard(
+                                    user        = user,
+                                    imageUrl    = userImages[user.id],
+                                    isExpanded  = expandedUserId == user.id,
+                                    isDeleted   = true,
+                                    onToggle    = { expandedUserId = if (expandedUserId == user.id) null else user.id },
+                                    onDelete    = { userToDelete = user },
+                                    onToggleBan = {}
+                                )
+                            }
+                            item { Spacer(Modifier.height(16.dp)) }
+                        }
                     }
                 }
             }
         }
     }
 
-    // ── Delete Confirmation Dialog ────────────────────────────────────────────
+    // ── Delete confirmation dialog ────────────────────────────────────────────
     userToDelete?.let { user ->
         AlertDialog(
             onDismissRequest = { userToDelete = null },
             title = { Text("Delete User") },
-            text = { Text("Are you sure you want to delete \"${user.full_name}\"? This action cannot be undone.") },
+            text  = { Text("Permanently delete \"${user.full_name}\"? This cannot be undone.") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                softDeleteUser(user.id)
+                TextButton(onClick = {
+                    scope.launch {
+                        try {
 
-                                // remove from UI (simulate deletion)
-                                users = users.filter { it.id != user.id }
+                            if (user.is_deleted) {
+                                // 🔴 HARD DELETE (حذف نهائي)
+                                SupabaseClientProvider.client
+                                    .from("users")
+                                    .delete {
+                                        filter { eq("id", user.id) }
+                                    }
 
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            } finally {
-                                userToDelete = null
+                                deletedUsers = deletedUsers.filter { it.id != user.id }
+
+                            } else {
+                                // 🟢 SOFT DELETE
+                                SupabaseClientProvider.client
+                                    .from("users")
+                                    .update(
+                                        mapOf("is_deleted" to true)
+                                    ) {
+                                        filter { eq("id", user.id) }
+                                    }
+
+                                activeUsers = activeUsers.filter { it.id != user.id }
+                                deletedUsers = deletedUsers + user.copy(is_deleted = true)
                             }
+
+                            if (expandedUserId == user.id) expandedUserId = null
+
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            userToDelete = null
                         }
                     }
-                ) {
+                }) {
                     Text("Delete", color = RedError)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { userToDelete = null }) {
-                    Text("Cancel")
-                }
+                    TextButton(onClick = { userToDelete = null }) { Text("Cancel") }
             }
         )
     }
@@ -260,118 +380,270 @@ fun UsersManagementScreen(
 @Composable
 private fun UserCard(
     user: User,
+    imageUrl: String?,
+    isExpanded: Boolean,
+    isDeleted: Boolean,
+    onToggle: () -> Unit,
     onDelete: () -> Unit,
     onToggleBan: (Boolean) -> Unit
 ) {
-    val isActive = !user.is_banned
+    val isActive    = !user.is_banned
+    val accentColor = if (isDeleted) Color(0xFF9E9E9E) else GreenPrimary
+
+    val borderColor = when {
+        isDeleted -> Color(0xFFBDBDBD)
+        !isActive -> RedError.copy(alpha = 0.5f)
+        else      -> GreenPrimary.copy(alpha = 0.4f)
+    }
 
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, GreenPrimary.copy(alpha = 0.4f)),
+        border = BorderStroke(1.5.dp, borderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column {
 
-            // ── Top row: avatar + name + delete button ────────────────────────
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            // 🔹 HEADER
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() }
+                    .padding(12.dp)
             ) {
-                // Avatar placeholder
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(GreenPrimary.copy(alpha = 0.15f))
-                        .border(2.dp, GreenPrimary, CircleShape),
-                    contentAlignment = Alignment.Center
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
+
+                    // ✅ AVATAR (FIXED)
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.15f))
+                            .border(2.dp, accentColor, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!imageUrl.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = imageUrl,
+                                contentDescription = "User Image",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Icon(
+                                Icons.Outlined.Person,
+                                contentDescription = "Default Avatar",
+                                tint = accentColor,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.width(10.dp))
+
+                    // 🔹 USER INFO
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            user.full_name,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            user.role.replaceFirstChar { it.uppercase() },
+                            fontSize = 12.sp,
+                            color = accentColor
+                        )
+                    }
+
+                    // 🔹 EXPAND BUTTON
                     Icon(
-                        imageVector = Icons.Outlined.Person,
+                        if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                         contentDescription = null,
-                        tint = GreenPrimary,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Text(
-                    text = user.full_name,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
-                    modifier = Modifier.weight(1f)
-                )
-
-                // Delete button
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(RedError.copy(alpha = 0.12f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete",
-                        tint = RedError,
+                        tint = Color.Gray,
                         modifier = Modifier.size(20.dp)
                     )
-                }
-            }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFFEEEEEE))
+                    Spacer(Modifier.width(4.dp))
 
-            // ── Bottom row: email + role + toggle ─────────────────────────────
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "email: ${user.email ?: "—"}",
-                        fontSize = 12.sp,
-                        color = Color.DarkGray
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 🔹 DELETE BUTTON
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(RedError.copy(alpha = 0.12f))
+                    ) {
                         Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(3.dp))
-                        Text(
-                            text = user.role,
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                            Icons.Outlined.Delete,
+                            contentDescription = "Delete",
+                            tint = RedError,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                // Active / Banned toggle
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (isActive) "Active" else "Banned",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isActive) GreenPrimaryDark else RedError
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Switch(
-                        checked = isActive,
-                        onCheckedChange = { checked -> onToggleBan(!checked) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = GreenPrimaryDark,
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = RedError
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = Color(0xFFEEEEEE)
+                )
+
+                // 🔹 EMAIL + STATUS
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            user.email ?: "No email",
+                            fontSize = 12.sp,
+                            color = Color.DarkGray
                         )
-                    )
+                        user.phone?.let {
+                            Text(it, fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+
+                    if (isDeleted) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFEEEEEE)
+                        ) {
+                            Text(
+                                "Deleted",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.Gray,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+
+                            Spacer(Modifier.width(6.dp))
+
+                        }
+                    }
+                }
+            }
+
+            // 🔹 EXPANDABLE DETAILS
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                UserDetailBanner(
+                    user = user,
+                    imageUrl = imageUrl,
+                    accentColor = accentColor
+                )
+            }
+        }
+    }
+}
+
+// ─── Expandable detail banner ─────────────────────────────────────────────────
+
+@Composable
+private fun UserDetailBanner(user: User, imageUrl: String?, accentColor: Color) {
+    Surface(
+        color    = accentColor.copy(alpha = 0.06f),
+        shape    = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+
+            // Header
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Info, null, tint = accentColor, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("Full Profile", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = accentColor)
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = accentColor.copy(alpha = 0.15f))
+
+            // Profile picture indicator
+            if (imageUrl != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
+                    Icon(Icons.Outlined.Image, null, tint = accentColor, modifier = Modifier.size(13.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("Profile photo: ", fontSize = 12.sp, color = Color.Gray)
+                    Text("Available", fontSize = 12.sp, color = GreenPrimaryDark, fontWeight = FontWeight.Medium)
+                }
+                // Image URL (useful for debugging / copy-paste)
+                Text(
+                    imageUrl.take(60) + if (imageUrl.length > 60) "…" else "",
+                    fontSize = 10.sp, color = Color.Gray,
+                    modifier = Modifier.padding(start = 18.dp, bottom = 8.dp)
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
+                    Icon(Icons.Outlined.HideImage, null, tint = Color.Gray, modifier = Modifier.size(13.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("No profile photo", fontSize = 12.sp, color = Color.Gray)
+                }
+            }
+
+            HorizontalDivider(color = accentColor.copy(alpha = 0.10f), modifier = Modifier.padding(bottom = 8.dp))
+
+            // All user fields
+            UserBannerRow(Icons.Outlined.Badge,          "User ID",         user.id)
+            UserBannerRow(Icons.Outlined.Person,         "Full name",       user.full_name)
+            user.email?.let        { UserBannerRow(Icons.Outlined.Email,         "Email",           it) }
+            user.phone?.let        { UserBannerRow(Icons.Outlined.Phone,         "Phone",           it) }
+            UserBannerRow(Icons.Outlined.ManageAccounts, "Role",            user.role.replaceFirstChar { it.uppercase() })
+            user.date_of_birth?.let{ UserBannerRow(Icons.Outlined.Cake,          "Date of birth",   it) }
+            user.bio?.let          { UserBannerRow(Icons.Outlined.Notes,          "Bio",             it) }
+            user.created_at?.let   { UserBannerRow(Icons.Outlined.CalendarMonth,  "Joined",          it.take(10)) }
+            user.banned_at?.let    { UserBannerRow(Icons.Outlined.Block,          "Banned at",       it.take(10)) }
+            user.banned_reason?.let{ UserBannerRow(Icons.Outlined.Report,         "Ban reason",      it) }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Status badges
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                UserStatusBadge(
+                    label = if (user.is_banned) "Banned" else "Active",
+                    color = if (user.is_banned) RedError else GreenPrimaryDark
+                )
+                if (user.is_deleted) {
+                    UserStatusBadge(label = "Deleted", color = Color(0xFF757575))
                 }
             }
         }
     }
+}
+
+// ─── Small shared composables ─────────────────────────────────────────────────
+
+@Composable
+private fun UserBannerRow(icon: ImageVector, label: String, value: String) {
+    Row(modifier = Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, null, tint = Color.Gray, modifier = Modifier.size(13.dp).padding(top = 1.dp))
+        Spacer(Modifier.width(5.dp))
+        Text("$label: ", fontSize = 12.sp, color = Color.Gray)
+        Text(value, fontSize = 12.sp, color = Color(0xFF1A1A1A), fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun UserStatusBadge(label: String, color: Color) {
+    Surface(shape = RoundedCornerShape(20.dp), color = color.copy(alpha = 0.12f)) {
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = color,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
+    }
+}
+
+// ─── Preview ─────────────────────────────────────────────────────────────────
+
+@Preview(showBackground = true)
+@Composable
+fun UsersManagementPreview() {
+    Mazra3tyTheme { UsersManagementScreen(onBack = {}) }
 }

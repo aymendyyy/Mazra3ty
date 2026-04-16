@@ -39,7 +39,7 @@ fun StatisticsScreen(onBack: () -> Unit) {
     LaunchedEffect(Unit) {
         scope.launch {
             try {
-                users = SupabaseClientProvider.client.postgrest["users"].select().decodeList()
+                users = SupabaseClientProvider.client.postgrest["active_users"].select().decodeList()
                 jobs = SupabaseClientProvider.client.postgrest["jobs"].select().decodeList()
                 reviews = SupabaseClientProvider.client.postgrest["reviews"].select().decodeList()
                 applications = SupabaseClientProvider.client.postgrest["applications"].select().decodeList()
@@ -49,6 +49,7 @@ fun StatisticsScreen(onBack: () -> Unit) {
                 isLoading = false
             }
         }
+
     }
 
     // Computed stats
@@ -63,17 +64,6 @@ fun StatisticsScreen(onBack: () -> Unit) {
     val acceptedApps = applications.count { it.status == "accepted" }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Statistics", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
         containerColor = Color(0xFFF5F5F5)
     ) { padding ->
 

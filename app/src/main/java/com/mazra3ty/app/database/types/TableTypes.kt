@@ -12,6 +12,7 @@ data class User(
 
     val date_of_birth: String? = null,
     val bio: String? = null,
+    val is_deleted: Boolean = false,
 
     val is_banned: Boolean = false,
     val banned_at: String? = null,

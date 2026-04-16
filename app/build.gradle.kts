@@ -54,7 +54,8 @@ dependencies {
     implementation(libs.ktor.android)
     // Serialization
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.ui)
+    // Coil (image loading)
+    implementation(libs.coil.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
