@@ -122,3 +122,13 @@ data class CreateWorkerPost(
     val location: String? = null,
     val availability: String? = null
 )
+@Serializable
+data class Sponsor(
+    val id: String,
+    val name: String,
+    val tagline: String? = null,       // e.g. "Best fertilizers in Algeria"
+    val image_url: String? = null,     // banner / logo URL
+    val redirect_url: String? = null,  // optional deep-link or external URL
+    val is_active: Boolean = true,
+    val created_at: String? = null
+)

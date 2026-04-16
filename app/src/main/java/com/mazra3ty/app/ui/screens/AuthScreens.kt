@@ -184,12 +184,13 @@ fun AuthHost() {
                 }
             )
 
-            // ───────── HOME (🔥 المهم) ─────────
             AuthStep.HOME -> {
+                val user = client.auth.currentUserOrNull()
                 HomeScreen(
+                    userId = user?.id ?: "",
                     userEmail = userEmail,
-                    userRole  = userRole,
-                    onLogout  = { scope.launch { client.auth.signOut(); step = AuthStep.LOGIN } }
+                    userRole = userRole,
+                    onLogout = { scope.launch { client.auth.signOut(); step = AuthStep.LOGIN } }
                 )
             }
         }

@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.navigation.compose)
     // Supabase BOM
     implementation(platform(libs.supabase.bom))
     implementation(libs.supabase.postgrest)
@@ -54,7 +55,6 @@ dependencies {
     implementation(libs.ktor.android)
     // Serialization
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.androidx.ui)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
