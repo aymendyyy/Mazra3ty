@@ -16,7 +16,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,7 +45,6 @@ object FarmerRoutes {
 
 data class NavItem(
     val route:       String,
-    val label:       String,
     val iconFilled:  ImageVector,
     val iconOutlined: ImageVector
 )
@@ -56,31 +54,26 @@ data class NavItem(
 val workerNavItems = listOf(
     NavItem(
         route        = WorkerRoutes.HOME,
-        label        = "Home",
         iconFilled   = Icons.Filled.Home,
         iconOutlined = Icons.Outlined.Home
     ),
     NavItem(
         route        = WorkerRoutes.JOBS,
-        label        = "Jobs",
         iconFilled   = Icons.Filled.Work,
         iconOutlined = Icons.Outlined.Work
     ),
     NavItem(
         route        = WorkerRoutes.POSTS,
-        label        = "My Posts",
         iconFilled   = Icons.Filled.Article,
         iconOutlined = Icons.Outlined.Article
     ),
     NavItem(
         route        = WorkerRoutes.MESSAGES,
-        label        = "Messages",
         iconFilled   = Icons.Filled.Chat,
         iconOutlined = Icons.Outlined.Chat
     ),
     NavItem(
         route        = WorkerRoutes.PROFILE,
-        label        = "Profile",
         iconFilled   = Icons.Filled.Person,
         iconOutlined = Icons.Outlined.Person
     )
@@ -91,31 +84,26 @@ val workerNavItems = listOf(
 val farmerNavItems = listOf(
     NavItem(
         route        = FarmerRoutes.HOME,
-        label        = "Home",
         iconFilled   = Icons.Filled.Home,
         iconOutlined = Icons.Outlined.Home
     ),
     NavItem(
         route        = FarmerRoutes.MY_JOBS,
-        label        = "My Jobs",
         iconFilled   = Icons.Filled.Inventory2,
         iconOutlined = Icons.Outlined.Inventory2
     ),
     NavItem(
         route        = FarmerRoutes.WORKER_FEED,
-        label        = "Workers",
         iconFilled   = Icons.Filled.People,
         iconOutlined = Icons.Outlined.People
     ),
     NavItem(
         route        = FarmerRoutes.MESSAGES,
-        label        = "Messages",
         iconFilled   = Icons.Filled.Chat,
         iconOutlined = Icons.Outlined.Chat
     ),
     NavItem(
         route        = FarmerRoutes.PROFILE,
-        label        = "Profile",
         iconFilled   = Icons.Filled.Person,
         iconOutlined = Icons.Outlined.Person
     )
@@ -232,7 +220,7 @@ private fun NavBarItem(
                 ) {
                     Icon(
                         imageVector     = if (selected) item.iconFilled else item.iconOutlined,
-                        contentDescription = item.label,
+                        contentDescription="",
                         tint            = iconColor,
                         modifier        = Modifier.size(24.dp)
                     )
@@ -240,15 +228,6 @@ private fun NavBarItem(
             }
 
             Spacer(Modifier.height(3.dp))
-
-            // Label
-            Text(
-                text       = item.label,
-                fontSize   = 10.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                color      = labelColor,
-                maxLines   = 1
-            )
         }
     }
 }
