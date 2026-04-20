@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             Mazra3tyTheme {
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->

@@ -14,7 +14,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mazra3ty.app.ui.admin.AdminBottomBar
-import com.mazra3ty.app.ui.admin.AdminDashboardScreen
+import com.mazra3ty.app.ui.admin.AdminHome
+import com.mazra3ty.app.ui.admin.AdminTopBar
 import com.mazra3ty.app.ui.admin.AdsMonitorScreen
 import com.mazra3ty.app.ui.admin.ReportsScreen
 import com.mazra3ty.app.ui.admin.ReviewsMonitorScreen
@@ -274,6 +275,13 @@ private fun AdminNavHost(
     var currentRoute by remember { mutableStateOf(AdminRoutes.DASHBOARD) }
 
     Scaffold(
+        topBar = {
+            // currentRoute is passed so the title updates on every navigation
+            AdminTopBar(
+                currentRoute = currentRoute,
+                onLogout     = onLogout
+            )
+        },
         bottomBar = {
             AdminBottomBar(
                 currentRoute = currentRoute,
@@ -294,9 +302,11 @@ private fun AdminNavHost(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(AdminRoutes.DASHBOARD) {
-                AdminDashboardScreen(
+                AdminHome(
                     onNavigate = { /* navigate inside admin */ },
+                    userEmail ="" ,
                     onLogout = onLogout
+
                 )
             }
             composable(AdminRoutes.USERS) {

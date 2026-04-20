@@ -15,26 +15,15 @@ import androidx.compose.ui.graphics.Color
 @Composable
 public fun AdminHome(
     userEmail: String,
-    onLogout:  () -> Unit
+    onLogout: () -> Unit,
+    onNavigate: () -> Unit
 ) {
     var currentRoute by remember { mutableStateOf(AdminScreen.Dashboard.route) }
 
     AdminGuard(onUnauthorized = onLogout) {
         Scaffold(
             containerColor = Color(0xFFF5F5F5),
-            topBar = {
-                // currentRoute is passed so the title updates on every navigation
-                AdminTopBar(
-                    currentRoute = currentRoute,
-                    onLogout     = onLogout
-                )
-            },
-            bottomBar = {
-                AdminBottomBar(
-                    currentRoute = currentRoute,
-                    onNavigate   = { route -> currentRoute = route }
-                )
-            }
+
         ) { innerPadding ->
             Box(
                 modifier = Modifier

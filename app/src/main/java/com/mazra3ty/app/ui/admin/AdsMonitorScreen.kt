@@ -97,13 +97,6 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
 
     // ── Scaffold ──────────────────────────────────────────────────────────────
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Manage Ads", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "Back") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
         containerColor = Color(0xFFF5F5F5)
     ) { padding ->
 
