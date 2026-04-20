@@ -75,7 +75,7 @@ fun AdminDashboardScreen(
 
     // ── No topBar here — the shared AdminTopBar lives in AdminHome's Scaffold ──
     Scaffold(
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = Color(0xFFFFFFFF)
     ) { padding ->
 
         if (isLoading) {
@@ -105,7 +105,7 @@ fun AdminDashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Welcome back 👋", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
+                        Text("Welcome back ", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
                         Text(
                             "Administrator",
                             color      = Color.White,
@@ -173,23 +173,12 @@ fun AdminDashboardScreen(
                 )
             }
 
-            // ── Quick access ──────────────────────────────────────────────
-            Text("Quick Access", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = TextPrimary)
 
-            listOf(
-                Triple(Icons.Outlined.People,     "Manage Users",    AdminScreen.Users.route),
-                Triple(Icons.Outlined.Work,        "Monitor Jobs",    AdminScreen.Ads.route),
-                Triple(Icons.Outlined.RateReview,  "Monitor Reviews", AdminScreen.Reviews.route),
-                Triple(Icons.Outlined.BarChart,    "Statistics",      AdminScreen.Statistics.route),
-                Triple(Icons.Outlined.Description, "Reports",         AdminScreen.Reports.route),
-            ).forEach { (icon, label, route) ->
-                QuickAccessRow(icon = icon, label = label, onClick = { onNavigate(route) })
             }
 
-            Spacer(Modifier.height(8.dp))
         }
     }
-}
+
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -224,36 +213,7 @@ private fun StatCard(
     }
 }
 
-// ─── Quick Access Row ─────────────────────────────────────────────────────────
 
-@Composable
-private fun QuickAccessRow(
-    icon:    ImageVector,
-    label:   String,
-    onClick: () -> Unit
-) {
-    Card(
-        shape    = RoundedCornerShape(14.dp),
-        colors   = CardDefaults.cardColors(containerColor = Color.White),
-        border   = androidx.compose.foundation.BorderStroke(1.dp, GreenPrimary.copy(alpha = 0.25f)),
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }
-    ) {
-        Row(
-            modifier          = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier         = Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(GreenPrimary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
-            }
-            Spacer(Modifier.width(14.dp))
-            Text(label, fontWeight = FontWeight.Medium, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Icon(Icons.Outlined.ChevronRight, null, tint = GrayMedium)
-        }
-    }
-}
 
 // ─── Preview ──────────────────────────────────────────────────────────────────
 

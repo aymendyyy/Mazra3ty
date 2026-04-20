@@ -35,7 +35,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mazra3ty.app.database.SupabaseClientProvider
-import com.mazra3ty.app.ui.admin.AdminDashboardScreen
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth

@@ -25,19 +25,22 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             Mazra3tyTheme {
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
 
                     Box(
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = innerPadding.calculateTopPadding()
+                            )
                     ) {
                         AuthHost()
-
-                    }
+                    }}
 
                 }
             }
         }
     }
-}
