@@ -23,3 +23,12 @@ val TextSecondary = Color(0xFF6B7280)
 
 // 🔴 Error / Danger
 val RedError = Color(0xFFEF4444)
+
+
+//bakir///
+val GreenButton     = Color(0xFF388E3C)
+val TextDark        = Color(0xFF1A1A1A)
+val TextGray        = Color(0xFF757575)
+val CardBorder      = Color(0xFFC8E6C9)
+val White           = Color(0xFFFFFFFF)
+val Background      = Color(0xFFF5F5F5)

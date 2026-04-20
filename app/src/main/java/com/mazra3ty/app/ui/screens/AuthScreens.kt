@@ -41,6 +41,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.mazra3ty.app.ui.worker.JobsScreen
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Auth steps
@@ -738,8 +739,68 @@ fun OtpScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 // WORKER DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ الكود الجديد - WorkerDashboard مع Bottom Navigation
 @Composable
 fun WorkerDashboard(userEmail: String, onLogout: () -> Unit) {
+
+    // State للتحكم في أي شاشة تظهر
+    var currentScreen by remember { mutableStateOf("home") }
+
+    Scaffold(
+        containerColor = BackgroundLight,
+        bottomBar = {
+            NavigationBar(
+                containerColor = SurfaceWhite,
+                tonalElevation = 8.dp
+            ) {
+                // تعريف عناصر الـ Bottom Nav
+                val navItems = listOf(
+                    Triple("home",    Icons.Outlined.Home,   "Home"),
+                    Triple("jobs",    Icons.Outlined.Work,   "Jobs"),
+                    Triple("chat",    Icons.Outlined.Chat,   "Chat"),
+                    Triple("profile", Icons.Outlined.Person, "Profile")
+                )
+
+                navItems.forEach { (screen, icon, label) ->
+                    NavigationBarItem(
+                        selected = currentScreen == screen,
+                        onClick  = { currentScreen = screen },
+                        icon     = {
+                            Icon(
+                                imageVector        = icon,
+                                contentDescription = label
+                            )
+                        },
+                        label  = { Text(label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor   = GreenPrimary,
+                            selectedTextColor   = GreenPrimary,
+                            unselectedIconColor = TextSecondary,
+                            unselectedTextColor = TextSecondary,
+                            indicatorColor      = GreenLight
+                        )
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+
+        Box(modifier = Modifier.padding(innerPadding)) {
+            when (currentScreen) {
+                "home"    -> WorkerHomeContent(userEmail, onLogout)
+                "jobs"    -> JobsScreen()
+                "chat"    -> PlaceholderScreen("Chat", "Coming Soon 💬")
+                "profile" -> PlaceholderScreen("Profile", "Coming Soon 👤")
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// محتوى الصفحة الرئيسية (نفس الكود القديم لكن في function منفصلة)
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun WorkerHomeContent(userEmail: String, onLogout: () -> Unit) {
     val stats = listOf(
         Triple(Icons.Outlined.Work,        "Applied Jobs", "5"),
         Triple(Icons.Outlined.CheckCircle, "Accepted",     "2"),
@@ -762,28 +823,49 @@ fun WorkerDashboard(userEmail: String, onLogout: () -> Unit) {
         )
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            stats.take(2).forEach { (icon, label, value) -> StatCard(icon, label, value, Modifier.weight(1f)) }
+            stats.take(2).forEach { (icon, label, value) ->
+                StatCard(icon, label, value, Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            stats.drop(2).forEach { (icon, label, value) -> StatCard(icon, label, value, Modifier.weight(1f)) }
+            stats.drop(2).forEach { (icon, label, value) ->
+                StatCard(icon, label, value, Modifier.weight(1f))
+            }
         }
         Spacer(Modifier.height(28.dp))
-
         Text(
             "Quick Actions",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             color = TextPrimary
         )
         Spacer(Modifier.height(12.dp))
-        DashboardAction(Icons.Outlined.Search,        "Browse Jobs",       "Find farm work near you")
+        DashboardAction(Icons.Outlined.Search,        "Browse Jobs",     "Find farm work near you")
         Spacer(Modifier.height(10.dp))
-        DashboardAction(Icons.Outlined.PostAdd,       "Post My Profile",   "Let farmers discover you")
+        DashboardAction(Icons.Outlined.PostAdd,       "Post My Profile", "Let farmers discover you")
         Spacer(Modifier.height(10.dp))
-        DashboardAction(Icons.Outlined.Notifications, "My Applications",   "Track your job applications")
+        DashboardAction(Icons.Outlined.Notifications, "My Applications", "Track your job applications")
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// شاشة مؤقتة للصفحات غير المكتملة
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun PlaceholderScreen(title: String, message: String) {
+    Box(
+        modifier         = Modifier.fillMaxSize().background(BackgroundLight),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text  = message,
+                style = MaterialTheme.typography.titleMedium,
+                color = TextSecondary
+            )
+        }
+    }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared Dashboard scaffold
 // ─────────────────────────────────────────────────────────────────────────────

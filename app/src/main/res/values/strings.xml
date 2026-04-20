@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Mazra3ty</string>
+    ////bakir///
+    <string name="nav_home">Home</string>
+    <string name="nav_jobs">Jobs</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_profile">Profile</string>
+    <string name="apply_now">Apply Now</string>
 </resources>

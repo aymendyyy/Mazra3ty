@@ -34,6 +34,27 @@ private val LightColorScheme = lightColorScheme(
     error = RedError
 )
 
+///bakir//
+private val LightColors = lightColorScheme(
+    primary        = GreenPrimary,
+    secondary      = GreenButton,
+    background     = Background,
+    surface        = White,
+    onPrimary      = White,
+    onBackground   = TextDark,
+    onSurface      = TextDark,
+)
+
+@Composable
+fun Mazra3tyTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = LightColors,
+        content     = content
+    )
+}
+
+///////////////
+
 @Composable
 fun Mazra3tyTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
