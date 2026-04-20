@@ -14,7 +14,6 @@ supabase = "3.5.0"
 ktor = "3.4.2"
 serialization = "1.7.3"
 coil = "2.7.0"
-ui = "1.10.6"
 navigationCompose = "2.7.7"
 
 [libraries]
@@ -36,7 +35,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 # Supabase (BOM)
 supabase-bom = { module = "io.github.jan-tennert.supabase:bom", version.ref = "supabase" }
-
+supabase-realtime = { module = "io.github.jan-tennert.supabase:realtime-kt" }
 supabase-postgrest = { module = "io.github.jan-tennert.supabase:postgrest-kt" }
 supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt" }
 supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt" }

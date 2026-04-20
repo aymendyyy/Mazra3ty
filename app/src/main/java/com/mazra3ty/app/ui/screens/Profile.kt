@@ -35,7 +35,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(
     userId: String,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
 
@@ -88,7 +89,18 @@ fun ProfileScreen(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    IconButton(onClick = onLogout) {
+                        Icon(
+                            Icons.Outlined.Logout,
+                            contentDescription = "Logout",
+                            tint = Color.Red
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+
+
             )
         },
         containerColor = Color(0xFFF5F5F5)
@@ -548,14 +560,7 @@ private fun WorkerPostItem(post: WorkerPost) {
             lineHeight = 18.sp,
             maxLines = 2
         )
-        post.skills?.takeIf { it.isNotBlank() }?.let {
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.Build, null, tint = GreenPrimary, modifier = Modifier.size(13.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(it, fontSize = 12.sp, color = GreenPrimaryDark)
-            }
-        }
+
         post.location?.takeIf { it.isNotBlank() }?.let {
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

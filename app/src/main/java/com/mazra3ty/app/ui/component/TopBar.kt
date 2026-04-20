@@ -50,6 +50,7 @@ import com.mazra3ty.app.ui.theme.TextPrimary
 fun HomeTopBar(
     user: User,
     searchQuery: String,
+    unreadCount: Int = 0,
     onSearchChange: (String) -> Unit,
     onNotificationsClick: () -> Unit,
     onAddClick: () -> Unit
@@ -137,31 +138,34 @@ fun HomeTopBar(
                     .clickable { onNotificationsClick() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.Notifications, contentDescription = "Notifications", tint = GreenPrimary)
-                // Unread dot
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(RedError)
-                        .align(Alignment.TopEnd)
-                        .offset(x = (-4).dp, y = 4.dp)
+                Icon(
+                    Icons.Outlined.Notifications,
+                    contentDescription = "Notifications",
+                    tint = GreenPrimary
                 )
+
+                if (unreadCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-2).dp, y = 2.dp)
+                            .clip(CircleShape)
+                            .background(RedError)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.width(8.dp))
 
-            // Add / Post button
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(GreenPrimary)
-                    .clickable { onAddClick() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = "Add", tint = Color.White)
-            }
         }
 
         Spacer(Modifier.height(14.dp))

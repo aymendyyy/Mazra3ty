@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.auth)
     implementation(libs.supabase.storage)
+    implementation(libs.supabase.realtime)
     // Ktor
     implementation(libs.ktor.android)
     // Serialization

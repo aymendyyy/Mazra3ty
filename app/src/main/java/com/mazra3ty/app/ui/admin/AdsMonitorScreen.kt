@@ -92,7 +92,6 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
         searchQuery.isBlank() ||
                 post.title?.contains(searchQuery, ignoreCase = true) == true ||
                 post.description.contains(searchQuery, ignoreCase = true) ||
-                post.skills?.contains(searchQuery, ignoreCase = true) == true ||
                 post.location?.contains(searchQuery, ignoreCase = true) == true
     }
 
@@ -417,20 +416,9 @@ private fun WorkerPostCard(
 
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    post.skills?.let   { AdsInfoChip(Icons.Outlined.Build,      it.take(22)) }
                     post.location?.let { AdsInfoChip(Icons.Outlined.LocationOn, it) }
                     Spacer(Modifier.weight(1f))
                     AdsMetaRow(Icons.Outlined.AccessTime, timeLabel)
-                }
-
-                post.availability?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.EventAvailable, null,
-                            tint = GreenPrimaryDark, modifier = Modifier.size(13.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(it, fontSize = 12.sp, color = GreenPrimaryDark, fontWeight = FontWeight.Medium)
-                    }
                 }
             }
 
@@ -440,9 +428,7 @@ private fun WorkerPostCard(
                     accentColor  = accent,
                     user         = publisher,
                     postExtras   = buildList {
-                        post.skills?.let       { add(Icons.Outlined.Build          to ("Skills"       to it)) }
                         post.location?.let     { add(Icons.Outlined.LocationOn     to ("Location"     to it)) }
-                        post.availability?.let { add(Icons.Outlined.EventAvailable to ("Availability" to it)) }
                         add(Icons.Outlined.CalendarMonth to ("Posted" to timeLabel))
                     }
                 )

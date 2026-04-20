@@ -21,8 +21,9 @@ import com.mazra3ty.app.ui.admin.ReviewsMonitorScreen
 import com.mazra3ty.app.ui.admin.StatisticsScreen
 import com.mazra3ty.app.ui.admin.UsersManagementScreen
 import com.mazra3ty.app.ui.component.FarmerBottomBar
-import com.mazra3ty.app.ui.farmer.CreateJobScreen
 import com.mazra3ty.app.ui.farmer.FarmerHomeScreen
+import com.mazra3ty.app.ui.farmer.FarmerJobsScreen
+import com.mazra3ty.app.ui.farmer.JobDetailScreen
 import com.mazra3ty.app.ui.farmer.NotificationsScreen
 import com.mazra3ty.app.ui.farmer.WorkersPage
 import com.mazra3ty.app.ui.screens.*
@@ -193,13 +194,17 @@ private fun FarmerNavGraph(
             )
         }
 
-    /*    // My Jobs screen
+        composable("job_detail/{jobId}") { backStackEntry ->
+            val jobId = backStackEntry.arguments?.getString("jobId") ?: return@composable
+            JobDetailScreen(jobId = jobId, currentUserId = userId, onBack = { navController.popBackStack() })
+        }
+        // My Jobs screen
         composable(FarmerRoutes.MY_JOBS) {
-            FarmerMyJobsScreen(
-                userEmail = userEmail,
+            FarmerJobsScreen(
+                farmerId = userId,
                 onBack = { navController.popBackStack() }
             )
-        }*/
+        }
 
         // Worker Feed screen (WorkersPage)
         composable(FarmerRoutes.WORKER_FEED) {
@@ -225,7 +230,8 @@ private fun FarmerNavGraph(
         composable(FarmerRoutes.PROFILE) {
             ProfileScreen(
                 userId = userId,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onLogout = onLogout
             )
         }
 
@@ -238,18 +244,18 @@ private fun FarmerNavGraph(
             )
         }
 
-        composable("create_job") {
+   /*     composable("create_job") {
             CreateJobScreen(
-                /*farmerId = userId,
+                *//*farmerId = userId,
                 onJobCreated = { navController.popBackStack() },
-                onBack = { navController.popBackStack() }*/
+                onBack = { navController.popBackStack() }*//*
             )
-        }
+        }*/
 
         composable("notifications") {
             NotificationsScreen(
-               // userId = userId,
-                //onBack = { navController.popBackStack() }
+                userId = userId,
+                onBack = { navController.popBackStack() }
             )
         }
     }

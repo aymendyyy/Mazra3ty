@@ -29,14 +29,12 @@ object WorkerRoutes {
     const val HOME        = "worker_home"
     const val JOBS        = "worker_jobs"
     const val POSTS       = "worker_posts"
-    const val MESSAGES    = "worker_messages"
     const val PROFILE     = "worker_profile"
 }
 
 object FarmerRoutes {
     const val HOME        = "farmer_home"
     const val MY_JOBS     = "farmer_my_jobs"
-    const val MESSAGES    = "farmer_messages"
     const val WORKER_FEED = "farmer_worker_feed"
     const val PROFILE     = "farmer_profile"
 }
@@ -68,11 +66,6 @@ val workerNavItems = listOf(
         iconOutlined = Icons.Outlined.Article
     ),
     NavItem(
-        route        = WorkerRoutes.MESSAGES,
-        iconFilled   = Icons.Filled.Chat,
-        iconOutlined = Icons.Outlined.Chat
-    ),
-    NavItem(
         route        = WorkerRoutes.PROFILE,
         iconFilled   = Icons.Filled.Person,
         iconOutlined = Icons.Outlined.Person
@@ -98,11 +91,6 @@ val farmerNavItems = listOf(
         iconOutlined = Icons.Outlined.People
     ),
     NavItem(
-        route        = FarmerRoutes.MESSAGES,
-        iconFilled   = Icons.Filled.Chat,
-        iconOutlined = Icons.Outlined.Chat
-    ),
-    NavItem(
         route        = FarmerRoutes.PROFILE,
         iconFilled   = Icons.Filled.Person,
         iconOutlined = Icons.Outlined.Person
@@ -121,35 +109,36 @@ val farmerNavItems = listOf(
  */
 @Composable
 fun AppBottomBar(
-    items:        List<NavItem>,
+    items: List<NavItem>,
     currentRoute: String,
-    onNavigate:   (String) -> Unit,
-    unreadCounts: Map<String, Int> = emptyMap()
+    onNavigate: (String) -> Unit,
 ) {
     Surface(
-        modifier  = Modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .shadow(elevation = 12.dp, shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)),
-        shape     = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        color     = Color.White,
-        tonalElevation = 0.dp
+            .shadow(
+                elevation = 12.dp,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            ),
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        color = Color.White
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .height(64.dp),
-            verticalAlignment     = Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             items.forEach { item ->
                 val selected = currentRoute == item.route
+
                 NavBarItem(
-                    item         = item,
-                    selected     = selected,
-                    badgeCount   = unreadCounts[item.route] ?: 0,
-                    onClick      = { if (!selected) onNavigate(item.route) },
-                    modifier     = Modifier.weight(1f)
+                    item = item,
+                    selected = selected,
+                    onClick = { if (!selected) onNavigate(item.route) },
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -160,22 +149,17 @@ fun AppBottomBar(
 
 @Composable
 private fun NavBarItem(
-    item:       NavItem,
-    selected:   Boolean,
-    badgeCount: Int,
-    onClick:    () -> Unit,
-    modifier:   Modifier = Modifier
+    item: NavItem,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val iconColor by animateColorAsState(
         targetValue = if (selected) GreenPrimary else Color(0xFFAAAAAA),
         animationSpec = tween(250),
         label = "iconColor"
     )
-    val labelColor by animateColorAsState(
-        targetValue = if (selected) GreenPrimaryDark else Color(0xFFAAAAAA),
-        animationSpec = tween(250),
-        label = "labelColor"
-    )
+
     val pillWidth by animateDpAsState(
         targetValue = if (selected) 48.dp else 0.dp,
         animationSpec = tween(300),
@@ -183,7 +167,7 @@ private fun NavBarItem(
     )
 
     IconButton(
-        onClick  = onClick,
+        onClick = onClick,
         modifier = modifier.fillMaxHeight()
     ) {
         Column(
@@ -191,9 +175,10 @@ private fun NavBarItem(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxSize()
         ) {
-            // Pill indicator + icon
+
             Box(contentAlignment = Alignment.Center) {
-                // Animated pill background
+
+                // pill background
                 Box(
                     modifier = Modifier
                         .height(32.dp)
@@ -202,29 +187,12 @@ private fun NavBarItem(
                         .background(GreenPrimary.copy(alpha = 0.12f))
                 )
 
-                // Icon with optional badge
-                BadgedBox(
-                    badge = {
-                        if (badgeCount > 0) {
-                            Badge(
-                                containerColor = Color(0xFFEF4444),
-                                contentColor   = Color.White
-                            ) {
-                                Text(
-                                    text = if (badgeCount > 99) "99+" else badgeCount.toString(),
-                                    fontSize = 9.sp
-                                )
-                            }
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector     = if (selected) item.iconFilled else item.iconOutlined,
-                        contentDescription="",
-                        tint            = iconColor,
-                        modifier        = Modifier.size(24.dp)
-                    )
-                }
+                // ICON (this was missing)
+                Icon(
+                    imageVector = if (selected) item.iconFilled else item.iconOutlined,
+                    contentDescription = item.route,
+                    tint = iconColor
+                )
             }
 
             Spacer(Modifier.height(3.dp))
@@ -242,13 +210,11 @@ private fun NavBarItem(
 fun WorkerBottomBar(
     currentRoute: String,
     onNavigate:   (String) -> Unit,
-    unreadMessages: Int = 0
 ) {
     AppBottomBar(
         items        = workerNavItems,
         currentRoute = currentRoute,
         onNavigate   = onNavigate,
-        unreadCounts = mapOf(WorkerRoutes.MESSAGES to unreadMessages)
     )
 }
 
@@ -260,13 +226,11 @@ fun WorkerBottomBar(
 fun FarmerBottomBar(
     currentRoute: String,
     onNavigate:   (String) -> Unit,
-    unreadMessages: Int = 0
 ) {
     AppBottomBar(
         items        = farmerNavItems,
         currentRoute = currentRoute,
         onNavigate   = onNavigate,
-        unreadCounts = mapOf(FarmerRoutes.MESSAGES to unreadMessages)
     )
 }
 
@@ -281,7 +245,6 @@ fun WorkerBottomBarPreview() {
             WorkerBottomBar(
                 currentRoute    = WorkerRoutes.JOBS,
                 onNavigate      = {},
-                unreadMessages  = 3
             )
         }
     }
@@ -296,7 +259,6 @@ fun FarmerBottomBarPreview() {
             FarmerBottomBar(
                 currentRoute    = FarmerRoutes.HOME,
                 onNavigate      = {},
-                unreadMessages  = 12
             )
         }
     }
