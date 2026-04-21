@@ -22,64 +22,91 @@ import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.ui.theme.*
 
 @Composable
-fun JobsScreen() {
-
-    // ===== State =====
-    var searchQuery     by remember { mutableStateOf("") }
-    var selectedChip    by remember { mutableStateOf("All") }
-    var selectedNav     by remember { mutableStateOf("Jobs") }
+fun JobsScreen(
+    userEmail: String = "",
+    userName: String = ""
+) {
+    // ===== States =====
+    var searchQuery  by remember { mutableStateOf("") }
+    var selectedChip by remember { mutableStateOf("All") }
+    var selectedJob  by remember { mutableStateOf<Job?>(null) } // ← للتفاصيل
 
     val chips = listOf("All", "Recent", "Palmes", "Trees", "Explore")
 
+    // ===== بيانات الوظائف =====
     val allJobs = listOf(
-        Job("Tomato Picker", "3000 da", "3 Days", "Ghardaia • 3 km", "All"),
-        Job("Palm Harvester", "2500 da", "5 Days", "Ghardaia • 5 km", "Palmes"),
-        Job("Tree Planter",   "2000 da", "2 Days", "Ghardaia • 1 km", "Trees"),
+        Job(
+            id           = "1",
+            title        = "Tomato Picker",
+            price        = "3000 da",
+            duration     = "3 Days",
+            location     = "Ghardaia • 3 km",
+            category     = "All",
+            description  = "We need experienced tomato pickers for our farm. Work starts early morning and ends at noon.",
+            farmerName   = "Ahmed Benali",
+            farmerEmail  = "ahmed@farm.dz",
+            requirements = "- Physical fitness\n- Experience in harvesting\n- Available for 3 days",
+            postedDate   = "2 days ago"
+        ),
+        Job(
+            id           = "2",
+            title        = "Palm Harvester",
+            price        = "2500 da",
+            duration     = "5 Days",
+            location     = "Ghardaia • 5 km",
+            category     = "Palmes",
+            description  = "Harvest dates from palm trees. Tools provided by the farm.",
+            farmerName   = "Karim Ouled",
+            farmerEmail  = "karim@palms.dz",
+            requirements = "- Not afraid of heights\n- Good physical condition",
+            postedDate   = "1 day ago"
+        ),
+        Job(
+            id           = "3",
+            title        = "Tree Planter",
+            price        = "2000 da",
+            duration     = "2 Days",
+            location     = "Ghardaia • 1 km",
+            category     = "Trees",
+            description  = "Plant young olive trees in our new field. Training provided.",
+            farmerName   = "Youcef Hamdi",
+            farmerEmail  = "youcef@olive.dz",
+            requirements = "- No experience needed\n- Must be punctual",
+            postedDate   = "Today"
+        )
     )
 
-    // فلترة القائمة
+    // ===== فلترة الوظائف =====
     val filteredJobs = allJobs.filter { job ->
-        val matchChip  = selectedChip == "All" || job.category == selectedChip
+        val matchChip   = selectedChip == "All" || job.category == selectedChip
         val matchSearch = job.title.contains(searchQuery, ignoreCase = true)
         matchChip && matchSearch
     }
 
     // ===== UI =====
     Scaffold(
-        containerColor = Background,
-        bottomBar = {
-            BottomNavigationBar(
-                selectedNav = selectedNav,
-                onNavSelected = { selectedNav = it }
-            )
-        }
+        containerColor = Background
     ) { paddingValues ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-
-            // ===== TOP BAR =====
             TopBar()
 
-            // ===== SEARCH BAR =====
             SearchBar(
-                query    = searchQuery,
+                query         = searchQuery,
                 onQueryChange = { searchQuery = it }
             )
 
-            // ===== FILTER CHIPS =====
             FilterChips(
-                chips       = chips,
-                selectedChip = selectedChip,
+                chips          = chips,
+                selectedChip   = selectedChip,
                 onChipSelected = { selectedChip = it }
             )
 
-            // ===== JOB LIST =====
             LazyColumn(
-                modifier = Modifier
+                modifier       = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
@@ -87,11 +114,23 @@ fun JobsScreen() {
                 items(filteredJobs) { job ->
                     JobCard(
                         job          = job,
-                        onApplyClick = { /* TODO */ }
+                        onApplyClick = { selectedJob = it } // ← يفتح التفاصيل
                     )
                 }
             }
         }
+    }
+
+    // ===== Bottom Sheet التفاصيل =====
+    // يظهر فقط عند الضغط على Apply Now
+    selectedJob?.let { job ->
+        JobDetailSheet(
+            job         = job,
+            workerEmail = userEmail,
+            workerName  = userName,
+            onDismiss   = { selectedJob = null },
+            onApplied   = { selectedJob = null }
+        )
     }
 }
 
@@ -107,10 +146,10 @@ fun TopBar() {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
-                imageVector = Icons.Default.Eco,
+                imageVector        = Icons.Default.Eco,
                 contentDescription = "Logo",
-                tint     = GreenPrimary,
-                modifier = Modifier.size(32.dp)
+                tint               = GreenPrimary,
+                modifier           = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -150,45 +189,57 @@ fun SearchBar(
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Search Field
-        Card(
-            modifier  = Modifier.weight(1f).height(48.dp),
-            shape     = RoundedCornerShape(24.dp),
-            colors    = CardDefaults.cardColors(containerColor = GreenLight),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        // ── حقل البحث ──
+        OutlinedTextField(
+            value         = query,
+            onValueChange = onQueryChange,
+            modifier      = Modifier
+                .weight(1f)
+                .height(52.dp),
+            placeholder   = {
+                Text(
+                    "Search jobs...",
+                    color = TextGray,
+                    fontSize = 14.sp
+                )
+            },
+            leadingIcon   = {
                 Icon(
                     imageVector        = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint               = TextGray,
+                    tint               = if (query.isNotBlank()) GreenPrimary else TextGray,
                     modifier           = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                TextField(
-                    value         = query,
-                    onValueChange = onQueryChange,
-                    placeholder   = { Text("Search..", color = TextGray) },
-                    colors        = TextFieldDefaults.colors(
-                        focusedContainerColor   = GreenLight,
-                        unfocusedContainerColor = GreenLight,
-                        focusedIndicatorColor   = androidx.compose.ui.graphics.Color.Transparent,
-                        unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
-                    ),
-                    singleLine = true,
-                    modifier   = Modifier.fillMaxWidth()
-                )
-            }
-        }
+            },
+            // ← زر X لمسح البحث
+            trailingIcon  = {
+                if (query.isNotBlank()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(
+                            imageVector        = Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint               = TextGray,
+                            modifier           = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            },
+            singleLine    = true,
+            shape         = RoundedCornerShape(24.dp),
+            colors        = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor   = GreenLight,
+                unfocusedContainerColor = GreenLight,
+                focusedBorderColor      = GreenPrimary,
+                unfocusedBorderColor    = androidx.compose.ui.graphics.Color.Transparent,
+                focusedTextColor        = TextDark,
+                unfocusedTextColor      = TextDark,
+                cursorColor             = GreenPrimary
+            )
+        )
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Filter Button
+        // ── زر الفلتر ──
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -205,7 +256,6 @@ fun SearchBar(
         }
     }
 }
-
 // ===== FILTER CHIPS =====
 @Composable
 fun FilterChips(
@@ -240,43 +290,6 @@ fun FilterChips(
                     color    = if (isSelected) White else TextDark
                 )
             }
-        }
-    }
-}
-
-// ===== BOTTOM NAV =====
-@Composable
-fun BottomNavigationBar(
-    selectedNav: String,
-    onNavSelected: (String) -> Unit
-) {
-    val items = listOf(
-        Pair("Home",    Icons.Default.Home),
-        Pair("Jobs",    Icons.Default.Work),
-        Pair("Chat",    Icons.Default.Chat),
-        Pair("Profile", Icons.Default.Person)
-    )
-
-    NavigationBar(containerColor = White) {
-        items.forEach { (label, icon) ->
-            NavigationBarItem(
-                selected = selectedNav == label,
-                onClick  = { onNavSelected(label) },
-                icon     = {
-                    Icon(
-                        imageVector        = icon,
-                        contentDescription = label
-                    )
-                },
-                label  = { Text(label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor   = GreenPrimary,
-                    selectedTextColor   = GreenPrimary,
-                    unselectedIconColor = TextGray,
-                    unselectedTextColor = TextGray,
-                    indicatorColor      = GreenLight
-                )
-            )
         }
     }
 }

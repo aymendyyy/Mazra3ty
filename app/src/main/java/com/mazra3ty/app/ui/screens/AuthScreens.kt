@@ -867,7 +867,10 @@ fun WorkerDashboard(userEmail: String, onLogout: () -> Unit) {
         Box(modifier = Modifier.padding(innerPadding)) {
             when (currentScreen) {
                 "home"    -> WorkerHomeContent(userEmail, onLogout)
-                "jobs"    -> JobsScreen()
+                "jobs"    -> JobsScreen(
+                    userEmail = userEmail,
+                    userName  = userEmail.substringBefore("@")
+                )
                 "chat"    -> PlaceholderScreen("Chat", "Coming Soon 💬")
                 "profile" -> PlaceholderScreen("Profile", "Coming Soon 👤")
             }
