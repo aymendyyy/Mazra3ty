@@ -1,4 +1,5 @@
 package com.mazra3ty.app.ui.farmer
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
@@ -62,50 +64,54 @@ fun WorkersPage(
 
     // ── Load data ─────────────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
-        scope.launch {
-            try {
-                val posts = SupabaseClientProvider.client
-                    .postgrest["worker_posts"].select().decodeList<WorkerPost>()
+        try {
+            val posts = SupabaseClientProvider.client
+                .postgrest["worker_posts"]
+                .select { limit(20) }
+                .decodeList<WorkerPost>()
 
-                val users = SupabaseClientProvider.client
-                    .postgrest["users"].select().decodeList<User>()
-                    .associateBy { it.id }
+            val workerIds = posts.map { it.worker_id }
 
-                val reviews = SupabaseClientProvider.client
-                    .postgrest["reviews"].select().decodeList<Review>()
-
-                val reviewsByWorker = reviews.groupBy { it.reviewed_id }
-
-                workers = posts.mapNotNull { post ->
-                    val user = users[post.worker_id] ?: return@mapNotNull null
-                    val workerReviews = reviewsByWorker[post.worker_id] ?: emptyList()
-                    val avg = if (workerReviews.isEmpty()) 0f
-                    else workerReviews.map { it.rating }.average().toFloat()
-                    WorkerItem(post, user, avg, workerReviews.size)
+            val users = SupabaseClientProvider.client
+                .postgrest["users"]
+                .select {
+                    filter { isIn("id", workerIds) }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                isLoading = false
+                .decodeList<User>()
+                .associateBy { it.id }
+
+            val reviews = SupabaseClientProvider.client
+                .postgrest["reviews"]
+                .select {
+                    filter { isIn("reviewed_id", workerIds) }
+                }
+                .decodeList<Review>()
+
+            val reviewsByWorker = reviews.groupBy { it.reviewed_id }
+
+            workers = posts.mapNotNull { post ->
+                val user = users[post.worker_id] ?: return@mapNotNull null
+                val workerReviews = reviewsByWorker[post.worker_id] ?: emptyList()
+                val avg = if (workerReviews.isEmpty()) 0f
+                else workerReviews.map { it.rating }.average().toFloat()
+
+                WorkerItem(post, user, avg, workerReviews.size)
             }
+
+        } catch (e: Exception) {
+            Log.e("WorkersPage", "Error loading workers", e)
+        } finally {
+            isLoading = false
         }
     }
-
     // ── Filter ────────────────────────────────────────────────────────────────
     val filtered = workers.filter { item ->
         val q = searchQuery.trim()
         val matchSearch = q.isEmpty() ||
                 item.user.full_name.contains(q, ignoreCase = true) ||
-                item.post.location?.contains(q, ignoreCase = true) == true ||
-                item.post.skills?.contains(q, ignoreCase = true) == true
+                item.post.location?.contains(q, ignoreCase = true) == true
 
-        val isAvail = item.post.availability?.lowercase() != "unavailable"
-        val matchAvail = when (filterAvailable) {
-            true  -> isAvail
-            false -> !isAvail
-            null  -> true
-        }
-        matchSearch && matchAvail
+        matchSearch
     }
 
     // ── UI ────────────────────────────────────────────────────────────────────
@@ -436,7 +442,7 @@ private fun WorkerCard(
     item: WorkerItem,
     onRequestWorker: () -> Unit
 ) {
-    val isAvailable = item.post.availability?.lowercase() != "unavailable"
+    val isAvailable = item.post.status.toString().lowercase() == "active"
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -602,7 +608,8 @@ private fun WorkerCard(
                 // ── Body ──────────────────────────────────────────────────
 
                 // Post title
-                item.post.title?.takeIf { it.isNotBlank() }?.let { title ->
+                if (item.post.title.isNotBlank()) {
+                    val title = item.post.title
                     Text(
                         text = title,
                         fontWeight = FontWeight.SemiBold,
@@ -623,7 +630,8 @@ private fun WorkerCard(
                 )
 
                 // Skills chips
-                item.post.skills?.takeIf { it.isNotBlank() }?.let { skillsRaw ->
+                val skills = item.post.skills
+                if (!skills.isNullOrEmpty()) {
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -641,18 +649,17 @@ private fun WorkerCard(
                         )
                     }
                     Spacer(Modifier.height(6.dp))
-                    // Wrap chips
-                    val chips = skillsRaw.split(",", "،", ";").map { it.trim() }.filter { it.isNotEmpty() }
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        chips.forEach { skill ->
-                            SkillChip(skill)
+                    Column {
+                        skills.chunked(3).forEach { rowSkills ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                rowSkills.forEach { skill ->
+                                    SkillChip(skill)
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
                         }
                     }
                 }
-
                 Spacer(Modifier.height(14.dp))
 
                 // ── Request Button ────────────────────────────────────────

@@ -30,14 +30,17 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
 
                     Box(
-                        modifier = Modifier.padding(innerPadding)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                top = innerPadding.calculateTopPadding()
+                            )
                     ) {
                         AuthHost()
-
                     }
+                }
 
                 }
             }
         }
     }
-}

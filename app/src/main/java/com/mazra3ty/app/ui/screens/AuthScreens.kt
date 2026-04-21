@@ -35,14 +35,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.mazra3ty.app.database.SupabaseClientProvider
-import com.mazra3ty.app.ui.admin.AdminDashboardScreen
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.mazra3ty.app.ui.worker.JobsScreen
@@ -449,6 +447,7 @@ fun LoginScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 // REGISTER SCREEN — full profile + signUpWith(Email)
 // ─────────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     client:            SupabaseClient,
@@ -527,23 +526,62 @@ fun RegisterScreen(
         // ── Personal Information ──
         FormSectionLabel("Personal Information")
         Spacer(Modifier.height(10.dp))
-        AppTextField(fullName, { fullName = it }, "Full name *",               Icons.Outlined.Person)
+        AppTextField(fullName, { fullName = it }, "Full name ",               Icons.Outlined.Person)
         Spacer(Modifier.height(12.dp))
-        AppTextField(phone,    { phone = it },    "Phone (optional)",           Icons.Outlined.Phone, keyboardType = KeyboardType.Phone)
+        AppTextField(phone,    { phone = it },    "Phone ",           Icons.Outlined.Phone, keyboardType = KeyboardType.Phone)
         Spacer(Modifier.height(12.dp))
-        AppTextField(dob,      { dob = it },      "Date of birth (YYYY-MM-DD)", Icons.Outlined.CalendarMonth, keyboardType = KeyboardType.Number, isError = dobError, errorMsg = "Use YYYY-MM-DD")
+
+        var showDatePicker by remember { mutableStateOf(false) }
+        var dob by remember { mutableStateOf("") }
+        Box(
+            modifier = Modifier.clickable { showDatePicker = true }
+        ) {
+            AppTextField(
+                value = dob,
+                onValueChange = {},
+                label = "Date of birth",
+                icon = Icons.Outlined.CalendarMonth,
+                enabled = false // يمنع الكتابة
+            )
+        }
+        if (showDatePicker) {
+            val datePickerState = rememberDatePickerState()
+
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDatePicker = false
+
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val date = java.text.SimpleDateFormat("yyyy-MM-dd")
+                                .format(java.util.Date(millis))
+                            dob = date
+                        }
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
+            }
+        }
         Spacer(Modifier.height(12.dp))
-        AppTextField(bio,      { bio = it },      "Bio (optional)",             Icons.Outlined.Notes, singleLine = false, minLines = 2)
         Spacer(Modifier.height(20.dp))
 
         // ── Account Credentials ──
         FormSectionLabel("Account Credentials")
         Spacer(Modifier.height(10.dp))
-        AppTextField(email,     { email = it },     "Email address *",           Icons.Outlined.Email,    keyboardType = KeyboardType.Email,    isError = emailError, errorMsg = "Enter a valid email")
+        AppTextField(email,     { email = it },     "Email address",           Icons.Outlined.Email,    keyboardType = KeyboardType.Email,    isError = emailError, errorMsg = "Enter a valid email")
         Spacer(Modifier.height(12.dp))
-        AppTextField(password,  { password = it },  "Password * (min 6 chars)",  Icons.Outlined.Lock,     keyboardType = KeyboardType.Password, isPassword = true, showPassword = showPw,  onTogglePw = { showPw  = !showPw  }, isError = pwShort,    errorMsg = "At least 6 characters")
+        AppTextField(password,  { password = it },  "Password",  Icons.Outlined.Lock,     keyboardType = KeyboardType.Password, isPassword = true, showPassword = showPw,  onTogglePw = { showPw  = !showPw  }, isError = pwShort,    errorMsg = "At least 6 characters")
         Spacer(Modifier.height(12.dp))
-        AppTextField(confirmPw, { confirmPw = it }, "Confirm password *",        Icons.Outlined.LockOpen, keyboardType = KeyboardType.Password, isPassword = true, showPassword = showCPw, onTogglePw = { showCPw = !showCPw }, isError = pwMismatch, errorMsg = "Passwords do not match")
+        AppTextField(confirmPw, { confirmPw = it }, "Confirm password ",        Icons.Outlined.LockOpen, keyboardType = KeyboardType.Password, isPassword = true, showPassword = showCPw, onTogglePw = { showCPw = !showCPw }, isError = pwMismatch, errorMsg = "Passwords do not match")
         Spacer(Modifier.height(20.dp))
 
         // ── Role ──
@@ -551,7 +589,6 @@ fun RegisterScreen(
         Spacer(Modifier.height(10.dp))
         RoleSelector(role) { role = it }
         Spacer(Modifier.height(28.dp))
-
         Button(
             onClick  = ::doRegister,
             enabled  = canSubmit,
@@ -1079,15 +1116,15 @@ private fun RoleSelector(selected: String, onSelect: (String) -> Unit) {
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .border(
-                        if (picked) 1.5.dp else 1.dp,
+                        1.dp,
                         if (picked) GreenPrimary else GrayLight,
-                        RoundedCornerShape(14.dp)
+                        RoundedCornerShape(12.dp)
                     )
                     .background(bgColor)
                     .clickable { onSelect(key) }
-                    .padding(vertical = 14.dp, horizontal = 14.dp),
+                    .padding(vertical = 12.dp, horizontal = 12.dp),
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -1213,7 +1250,7 @@ fun AppTextField(
                 focusedPlaceholderColor   = GrayMedium,
                 unfocusedPlaceholderColor = GrayMedium
             ),
-            // textStyle also pins colour so it's never overridden by theme
+            // textStyle also pins color so it's never overridden by theme
             textStyle        = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary),
             modifier         = Modifier.fillMaxWidth()
         )

@@ -93,18 +93,14 @@ data class UserImage(
 @Serializable
 data class WorkerPost(
     val id: String,
-
     val worker_id: String,
-
-    val title: String? = null,
+    val title: String,
     val description: String,
-
-    val skills: String? = null,
+    val skills: List<String> = emptyList(),
     val location: String? = null,
-
-    val availability: String? = null,
-
-    val created_at: String? = null
+    val status: WorkerPostStatus,
+    val created_at: String? = null,
+    val updated_at: String? = null
 )
 @Serializable
 data class CreateJob(
@@ -117,12 +113,17 @@ data class CreateJob(
 @Serializable
 data class CreateWorkerPost(
     val worker_id: String,
-    val title: String? = null,
+    val title: String,
     val description: String,
-    val skills: String? = null,
+    val skills: List<String> = emptyList(),
     val location: String? = null,
-    val availability: String? = null
-)
+    val status: WorkerPostStatus? = null
+    )
+
+enum class WorkerPostStatus {
+    active,
+    inactive
+}
 @Serializable
 data class Sponsor(
     val id: String,
@@ -132,4 +133,41 @@ data class Sponsor(
     val redirect_url: String? = null,  // optional deep-link or external URL
     val is_active: Boolean = true,
     val created_at: String? = null
+)
+enum class NotificationType {
+    APPLICATION,            // Farmer receives: a worker applied to their job
+    APPLICATION_ACCEPTED,   // Worker receives: their application was accepted
+    APPLICATION_REJECTED,   // Worker receives: their application was rejected
+    RATING                  // Both: someone left a review/rating
+}
+
+// ─── Notification Model ───────────────────────────────────────────────────────
+
+@Serializable
+data class Notification(
+    val id: String,
+    val user_id: String,
+    val title: String,
+    val message: String,
+    val type: String,               // stored as string, matches NotificationType name
+    val is_read: Boolean = false,
+    val created_at: String? = null
+) {
+    val notificationType: NotificationType
+        get() = NotificationType.valueOf(type)
+}
+
+// ─── Insert payload ───────────────────────────────────────────────────────────
+
+@Serializable
+data class CreateNotification(
+    val user_id: String,
+    val title: String,
+    val message: String,
+    val type: String
+)@Serializable
+data class CreateApplication(
+    val job_id: String,
+    val worker_id: String,
+    val status: String = "pending"
 )
