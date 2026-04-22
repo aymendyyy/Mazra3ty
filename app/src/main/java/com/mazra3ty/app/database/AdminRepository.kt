@@ -2,10 +2,13 @@ package com.mazra3ty.app.database
 
 import com.mazra3ty.app.database.types.Application
 import com.mazra3ty.app.database.types.Job
+import com.mazra3ty.app.database.types.Profile
 import com.mazra3ty.app.database.types.Review
 import com.mazra3ty.app.database.types.User
+import com.mazra3ty.app.database.types.UserWithProfile
 import com.mazra3ty.app.database.types.WorkerPost
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import java.time.Instant
 
 class AdminRepository {
@@ -14,7 +17,11 @@ class AdminRepository {
 
     // ─── Users ────────────────────────────────────────────────────────────────
 
-    /** Get all users */
+    /** Get all users with their profiles */
+    suspend fun getAllUsersWithProfiles(): List<UserWithProfile> =
+        db["users"].select(Columns.raw("*, profiles(*)")).decodeList()
+
+    /** Get all users (compact) */
     suspend fun getAllUsers(): List<User> =
         db["users"].select().decodeList()
 
@@ -51,9 +58,9 @@ class AdminRepository {
         }
     }
 
-    /** Get user by id */
-    suspend fun getUserById(userId: String): User =
-        db["users"].select {
+    /** Get user by id with profile */
+    suspend fun getUserById(userId: String): UserWithProfile =
+        db["users"].select(Columns.raw("*, profiles(*)")) {
             filter { eq("id", userId) }
         }.decodeSingle()
 

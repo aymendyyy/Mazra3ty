@@ -54,7 +54,6 @@ enum class AuthStep { ONBOARDING, LOGIN, REGISTER, OTP ,HOME}
 @Serializable
 data class UserDto(
     val id: String,
-    val email: String? = null,
     val role: String? = "worker",
     val is_deleted: Boolean? = false
 )
@@ -187,7 +186,6 @@ fun AuthHost() {
                 val user = client.auth.currentUserOrNull()
                 HomeScreen(
                     userId = user?.id ?: "",
-                    userEmail = userEmail,
                     userRole = userRole,
                     onLogout = { scope.launch { client.auth.signOut(); step = AuthStep.LOGIN } }
                 )
@@ -349,7 +347,12 @@ fun LoginScreen(
                 if (user != null) {
                     val users = client
                         .from("users")
-                        .select { filter { eq("id", user.id) } }
+                        .select {
+                            filter {
+                                eq("id", user.id)
+                                eq("is_deleted", false)
+                            }
+                        }
                         .decodeAs<List<UserDto>>()
                     val role = users.firstOrNull()?.role ?: "worker"
                     onLoginSuccess(email.trim(), role)
@@ -460,7 +463,6 @@ fun RegisterScreen(
     var password  by rememberSaveable { mutableStateOf("") }
     var confirmPw by rememberSaveable { mutableStateOf("") }
     var dob       by rememberSaveable { mutableStateOf("") }
-    var bio       by rememberSaveable { mutableStateOf("") }
     var role      by rememberSaveable { mutableStateOf("worker") }
     var showPw    by rememberSaveable { mutableStateOf(false) }
     var showCPw   by rememberSaveable { mutableStateOf(false) }
@@ -488,7 +490,6 @@ fun RegisterScreen(
                         put("phone",         phone.trim())
                         put("role",          role)
                         put("date_of_birth", dob.trim())
-                        put("bio",           bio.trim())
                     }
                 }
                 onRegisterSuccess(email.trim(), role)
@@ -532,7 +533,6 @@ fun RegisterScreen(
         Spacer(Modifier.height(12.dp))
 
         var showDatePicker by remember { mutableStateOf(false) }
-        var dob by remember { mutableStateOf("") }
         Box(
             modifier = Modifier.clickable { showDatePicker = true }
         ) {

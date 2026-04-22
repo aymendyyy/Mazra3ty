@@ -352,15 +352,19 @@ private fun ReviewCard(
                             )
                             Spacer(Modifier.height(6.dp))
                             reviewedUser?.let { u ->
-                                DetailRow(Icons.Outlined.Email,       u.email  ?: "—")
-                                DetailRow(Icons.Outlined.Phone,       u.phone  ?: "—")
-                                DetailRow(Icons.Outlined.Cake,        u.date_of_birth ?: "—")
-                                DetailRow(Icons.Outlined.Notes,       u.bio    ?: "—")
+                                DetailRow(Icons.Outlined.Phone, u.phone ?: "—")
+
+                                DetailRow(
+                                    Icons.Outlined.Cake,
+                                    u.date_of_birth ?: "—"
+                                )
+
                                 DetailRow(
                                     Icons.Outlined.AccessTime,
                                     if (u.created_at != null) formatRelative(u.created_at) else "—",
                                     label = "Joined"
                                 )
+
                                 if (u.is_banned) {
                                     Spacer(Modifier.height(4.dp))
                                     Surface(
@@ -368,16 +372,26 @@ private fun ReviewCard(
                                         color = RedError.copy(alpha = 0.1f)
                                     ) {
                                         Row(
-                                            modifier          = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(Icons.Outlined.Block, null, tint = RedError, modifier = Modifier.size(13.dp))
+                                            Icon(
+                                                Icons.Outlined.Block,
+                                                null,
+                                                tint = RedError,
+                                                modifier = Modifier.size(13.dp)
+                                            )
                                             Spacer(Modifier.width(4.dp))
-                                            Text("Banned", fontSize = 11.sp, color = RedError, fontWeight = FontWeight.Medium)
+                                            Text(
+                                                "Banned",
+                                                fontSize = 11.sp,
+                                                color = RedError,
+                                                fontWeight = FontWeight.Medium
+                                            )
                                         }
                                     }
                                 }
-                            } ?: Text("User data unavailable", fontSize = 12.sp, color = GrayDark)
+                            }
                         }
                     }
                 }

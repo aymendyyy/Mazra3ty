@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.Job
-import com.mazra3ty.app.database.types.User
+import com.mazra3ty.app.database.types.UserWithProfile
 import com.mazra3ty.app.database.types.WorkerPost
 import com.mazra3ty.app.ui.theme.GreenPrimary
 import com.mazra3ty.app.ui.theme.GreenPrimaryDark
@@ -50,17 +50,16 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
     // ── Data ──────────────────────────────────────────────────────────────────
     var jobs        by remember { mutableStateOf<List<Job>>(emptyList()) }
     var workerPosts by remember { mutableStateOf<List<WorkerPost>>(emptyList()) }
-    // Full User objects so the expanded banner can show all fields
-    var usersMap    by remember { mutableStateOf<Map<String, User>>(emptyMap()) }
+    var usersMap    by remember { mutableStateOf<Map<String, UserWithProfile>>(emptyMap()) }
     var isLoading   by remember { mutableStateOf(true) }
 
-    // ── UI ────────────────────────────────────────────────────────────────────
-    var activeTab      by remember { mutableStateOf(AdsTab.JOBS) }
-    var searchQuery    by remember { mutableStateOf("") }
-    var filterStatus   by remember { mutableStateOf<String?>(null) }
-    var showFilterMenu by remember { mutableStateOf(false) }
-    var expandedJobId  by remember { mutableStateOf<String?>(null) }
-    var expandedPostId by remember { mutableStateOf<String?>(null) }
+    // ── UI state ──────────────────────────────────────────────────────────────
+    var activeTab          by remember { mutableStateOf(AdsTab.JOBS) }
+    var searchQuery        by remember { mutableStateOf("") }
+    var filterStatus       by remember { mutableStateOf<String?>(null) }
+    var showFilterMenu     by remember { mutableStateOf(false) }
+    var expandedJobId      by remember { mutableStateOf<String?>(null) }
+    var expandedPostId     by remember { mutableStateOf<String?>(null) }
     var jobToDelete        by remember { mutableStateOf<Job?>(null) }
     var workerPostToDelete by remember { mutableStateOf<WorkerPost?>(null) }
 
@@ -70,7 +69,14 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
             try {
                 jobs        = SupabaseClientProvider.client.postgrest["jobs"].select().decodeList()
                 workerPosts = SupabaseClientProvider.client.postgrest["worker_posts"].select().decodeList()
-                val userList: List<User> = SupabaseClientProvider.client.postgrest["users"].select().decodeList()
+
+                // Query the flat view – no join tricks needed
+                val userList: List<UserWithProfile> =
+                    SupabaseClientProvider.client
+                        .postgrest["user_with_profile"]
+                        .select()
+                        .decodeList()
+
                 usersMap = userList.associateBy { it.id }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -100,7 +106,9 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text("Manage Ads", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "Back") } },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Outlined.ArrowBack, "Back") }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
@@ -127,19 +135,25 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
                         selected = sel,
                         onClick  = { activeTab = tab; searchQuery = ""; filterStatus = null },
                         label    = {
-                            Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
                                 Icon(icon, null, modifier = Modifier.size(14.dp))
                                 Text(lbl, fontSize = 13.sp)
                             }
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = GreenPrimary, selectedLabelColor = Color.White,
-                            containerColor = Color.White, labelColor = Color.DarkGray
+                            selectedContainerColor = GreenPrimary,
+                            selectedLabelColor     = Color.White,
+                            containerColor         = Color.White,
+                            labelColor             = Color.DarkGray
                         ),
                         border = FilterChipDefaults.filterChipBorder(
-                            enabled = true, selected = sel,
-                            selectedBorderColor = GreenPrimary, borderColor = Color(0xFFDDDDDD)
+                            enabled             = true,
+                            selected            = sel,
+                            selectedBorderColor = GreenPrimary,
+                            borderColor         = Color(0xFFDDDDDD)
                         )
                     )
                 }
@@ -150,29 +164,42 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
             // Search + filter
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
-                    value = searchQuery, onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search..", color = Color.Gray) },
-                    leadingIcon = { Icon(Icons.Outlined.Search, null, tint = Color.Gray) },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = GreenPrimary, unfocusedBorderColor = Color(0xFFDDDDDD),
-                        focusedContainerColor = Color(0xFFEEF7E8), unfocusedContainerColor = Color(0xFFEEF7E8)
+                    value           = searchQuery,
+                    onValueChange   = { searchQuery = it },
+                    placeholder     = { Text("Search..", color = Color.Gray) },
+                    leadingIcon     = { Icon(Icons.Outlined.Search, null, tint = Color.Gray) },
+                    shape           = RoundedCornerShape(24.dp),
+                    colors          = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor      = GreenPrimary,
+                        unfocusedBorderColor    = Color(0xFFDDDDDD),
+                        focusedContainerColor   = Color(0xFFEEF7E8),
+                        unfocusedContainerColor = Color(0xFFEEF7E8)
                     ),
-                    singleLine = true, modifier = Modifier.weight(1f).height(52.dp)
+                    singleLine = true,
+                    modifier   = Modifier.weight(1f).height(52.dp)
                 )
                 if (activeTab == AdsTab.JOBS) {
                     Spacer(Modifier.width(10.dp))
                     Box {
                         IconButton(
-                            onClick = { showFilterMenu = true },
-                            modifier = Modifier.size(48.dp).clip(CircleShape)
-                                .background(Color(0xFFEEF7E8)).border(1.dp, GreenPrimary, CircleShape)
+                            onClick  = { showFilterMenu = true },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEEF7E8))
+                                .border(1.dp, GreenPrimary, CircleShape)
                         ) { Icon(Icons.Outlined.Tune, "Filter", tint = GreenPrimary) }
-                        DropdownMenu(expanded = showFilterMenu, onDismissRequest = { showFilterMenu = false }) {
-                            listOf(null to "All", "open" to "Open", "closed" to "Closed").forEach { (s, l) ->
-                                DropdownMenuItem(text = { Text(l) },
-                                    onClick = { filterStatus = s; showFilterMenu = false })
-                            }
+                        DropdownMenu(
+                            expanded          = showFilterMenu,
+                            onDismissRequest  = { showFilterMenu = false }
+                        ) {
+                            listOf(null to "All", "open" to "Open", "closed" to "Closed")
+                                .forEach { (s, l) ->
+                                    DropdownMenuItem(
+                                        text    = { Text(l) },
+                                        onClick = { filterStatus = s; showFilterMenu = false }
+                                    )
+                                }
                         }
                     }
                 }
@@ -197,7 +224,9 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
                                     job        = job,
                                     publisher  = usersMap[job.farmer_id],
                                     isExpanded = expandedJobId == job.id,
-                                    onToggle   = { expandedJobId = if (expandedJobId == job.id) null else job.id },
+                                    onToggle   = {
+                                        expandedJobId = if (expandedJobId == job.id) null else job.id
+                                    },
                                     onDelete   = { jobToDelete = job }
                                 )
                             }
@@ -218,7 +247,9 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
                                     post       = post,
                                     publisher  = usersMap[post.worker_id],
                                     isExpanded = expandedPostId == post.id,
-                                    onToggle   = { expandedPostId = if (expandedPostId == post.id) null else post.id },
+                                    onToggle   = {
+                                        expandedPostId = if (expandedPostId == post.id) null else post.id
+                                    },
                                     onDelete   = { workerPostToDelete = post }
                                 )
                             }
@@ -230,13 +261,13 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
         }
     }
 
-    // Delete dialogs — both use hard DELETE (permanent)
+    // ── Delete dialogs ────────────────────────────────────────────────────────
     jobToDelete?.let { job ->
         AlertDialog(
             onDismissRequest = { jobToDelete = null },
-            title = { Text("Delete Job") },
-            text  = { Text("Permanently delete \"${job.title}\"? This cannot be undone.") },
-            confirmButton = {
+            title            = { Text("Delete Job") },
+            text             = { Text("Permanently delete \"${job.title}\"? This cannot be undone.") },
+            confirmButton    = {
                 TextButton(onClick = {
                     scope.launch {
                         try {
@@ -244,21 +275,28 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
                                 .delete { filter { eq("id", job.id) } }
                             jobs = jobs.filter { it.id != job.id }
                             if (expandedJobId == job.id) expandedJobId = null
-                        } catch (e: Exception) { e.printStackTrace() }
-                        finally { jobToDelete = null }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            jobToDelete = null
+                        }
                     }
                 }) { Text("Delete", color = RedError) }
             },
-            dismissButton = { TextButton(onClick = { jobToDelete = null }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = { jobToDelete = null }) { Text("Cancel") }
+            }
         )
     }
 
     workerPostToDelete?.let { post ->
         AlertDialog(
             onDismissRequest = { workerPostToDelete = null },
-            title = { Text("Delete Worker Post") },
-            text  = { Text("Permanently delete \"${post.title ?: post.description.take(40)}\"? This cannot be undone.") },
-            confirmButton = {
+            title            = { Text("Delete Worker Post") },
+            text             = {
+                Text("Permanently delete \"${post.title ?: post.description.take(40)}\"? This cannot be undone.")
+            },
+            confirmButton    = {
                 TextButton(onClick = {
                     scope.launch {
                         try {
@@ -266,12 +304,17 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
                                 .delete { filter { eq("id", post.id) } }
                             workerPosts = workerPosts.filter { it.id != post.id }
                             if (expandedPostId == post.id) expandedPostId = null
-                        } catch (e: Exception) { e.printStackTrace() }
-                        finally { workerPostToDelete = null }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        } finally {
+                            workerPostToDelete = null
+                        }
                     }
                 }) { Text("Delete", color = RedError) }
             },
-            dismissButton = { TextButton(onClick = { workerPostToDelete = null }) { Text("Cancel") } }
+            dismissButton = {
+                TextButton(onClick = { workerPostToDelete = null }) { Text("Cancel") }
+            }
         )
     }
 }
@@ -280,26 +323,29 @@ fun AdsMonitorScreen(onBack: () -> Unit) {
 
 @Composable
 private fun JobCard(
-    job: Job, publisher: User?,
-    isExpanded: Boolean, onToggle: () -> Unit, onDelete: () -> Unit
+    job: Job,
+    publisher: UserWithProfile?,          // ← fixed type
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val timeLabel   = remember(job.created_at) { adsFormatTime(job.created_at) }
     val statusColor = if (job.status == "open") GreenPrimaryDark else Color(0xFF9E9E9E)
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape  = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, GreenPrimary.copy(alpha = 0.4f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column {
-            // Clickable header
             Column(
                 modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(48.dp).clip(CircleShape)
+                        modifier = Modifier
+                            .size(48.dp).clip(CircleShape)
                             .background(GreenPrimary.copy(alpha = 0.15f))
                             .border(2.dp, GreenPrimary, CircleShape),
                         contentAlignment = Alignment.Center
@@ -310,8 +356,10 @@ private fun JobCard(
                     Column(Modifier.weight(1f)) {
                         Text(job.title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         job.salary?.let {
-                            Text("${it.toInt()} DZD/J", fontSize = 12.sp,
-                                color = GreenPrimaryDark, fontWeight = FontWeight.Bold)
+                            Text(
+                                "${it.toInt()} DZD/J",
+                                fontSize = 12.sp, color = GreenPrimaryDark, fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
@@ -329,8 +377,9 @@ private fun JobCard(
                     )
                     Spacer(Modifier.width(2.dp))
                     IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(34.dp).clip(CircleShape)
+                        onClick  = onDelete,
+                        modifier = Modifier
+                            .size(34.dp).clip(CircleShape)
                             .background(RedError.copy(alpha = 0.12f))
                     ) { Icon(Icons.Outlined.Delete, null, tint = RedError, modifier = Modifier.size(18.dp)) }
                 }
@@ -346,7 +395,6 @@ private fun JobCard(
                 }
             }
 
-            // Expandable publisher + post details banner
             AnimatedVisibility(visible = isExpanded, enter = expandVertically(), exit = shrinkVertically()) {
                 PublisherBanner(
                     sectionLabel = "Farmer / Publisher",
@@ -368,14 +416,17 @@ private fun JobCard(
 
 @Composable
 private fun WorkerPostCard(
-    post: WorkerPost, publisher: User?,
-    isExpanded: Boolean, onToggle: () -> Unit, onDelete: () -> Unit
+    post: WorkerPost,
+    publisher: UserWithProfile?,          // ← fixed type
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    val timeLabel   = remember(post.created_at) { adsFormatTime(post.created_at) }
-    val accent      = Color(0xFF1E88E5)
+    val timeLabel = remember(post.created_at) { adsFormatTime(post.created_at) }
+    val accent    = Color(0xFF1E88E5)
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape  = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = androidx.compose.foundation.BorderStroke(1.5.dp, accent.copy(alpha = 0.35f)),
         modifier = Modifier.fillMaxWidth()
@@ -384,8 +435,10 @@ private fun WorkerPostCard(
             Column(modifier = Modifier.fillMaxWidth().clickable { onToggle() }.padding(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        modifier = Modifier.size(48.dp).clip(CircleShape)
-                            .background(accent.copy(alpha = 0.12f)).border(2.dp, accent, CircleShape),
+                        modifier = Modifier
+                            .size(48.dp).clip(CircleShape)
+                            .background(accent.copy(alpha = 0.12f))
+                            .border(2.dp, accent, CircleShape),
                         contentAlignment = Alignment.Center
                     ) { Icon(Icons.Outlined.Agriculture, null, tint = accent, modifier = Modifier.size(24.dp)) }
 
@@ -402,20 +455,27 @@ private fun WorkerPostCard(
                     )
                     Spacer(Modifier.width(2.dp))
                     IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(34.dp).clip(CircleShape)
+                        onClick  = onDelete,
+                        modifier = Modifier
+                            .size(34.dp).clip(CircleShape)
                             .background(RedError.copy(alpha = 0.12f))
                     ) { Icon(Icons.Outlined.Delete, null, tint = RedError, modifier = Modifier.size(18.dp)) }
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = Color(0xFFEEEEEE))
 
-                Text(post.description, fontSize = 12.sp, color = Color.DarkGray, maxLines = 2, lineHeight = 18.sp)
+                Text(
+                    post.description,
+                    fontSize = 12.sp, color = Color.DarkGray, maxLines = 2, lineHeight = 18.sp
+                )
 
                 Spacer(Modifier.height(8.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     post.location?.let { AdsInfoChip(Icons.Outlined.LocationOn, it) }
                     Spacer(Modifier.weight(1f))
                     AdsMetaRow(Icons.Outlined.AccessTime, timeLabel)
@@ -428,7 +488,7 @@ private fun WorkerPostCard(
                     accentColor  = accent,
                     user         = publisher,
                     postExtras   = buildList {
-                        post.location?.let     { add(Icons.Outlined.LocationOn     to ("Location"     to it)) }
+                        post.location?.let { add(Icons.Outlined.LocationOn to ("Location" to it)) }
                         add(Icons.Outlined.CalendarMonth to ("Posted" to timeLabel))
                     }
                 )
@@ -437,13 +497,13 @@ private fun WorkerPostCard(
     }
 }
 
-// ─── Shared expandable banner ─────────────────────────────────────────────────
+// ─── Expandable publisher banner ──────────────────────────────────────────────
 
 @Composable
 private fun PublisherBanner(
     sectionLabel: String,
     accentColor:  Color,
-    user:         User?,
+    user: UserWithProfile?,               // ← correct type, no email field
     postExtras:   List<Pair<ImageVector, Pair<String, String>>>
 ) {
     Surface(
@@ -469,13 +529,13 @@ private fun PublisherBanner(
             if (user == null) {
                 Text("Publisher data not found", fontSize = 12.sp, color = Color.Gray)
             } else {
-                AdsBannerRow(Icons.Outlined.Person,        "Name",  user.full_name)
-                user.email?.let        { AdsBannerRow(Icons.Outlined.Email,         "Email",        it) }
-                user.phone?.let        { AdsBannerRow(Icons.Outlined.Phone,         "Phone",        it) }
-                AdsBannerRow(Icons.Outlined.Badge,         "Role",  user.role.replaceFirstChar { it.uppercase() })
-                user.date_of_birth?.let{ AdsBannerRow(Icons.Outlined.Cake,          "Date of birth",it) }
-                user.bio?.let          { AdsBannerRow(Icons.Outlined.Notes,          "Bio",          it) }
-                user.created_at?.let   { AdsBannerRow(Icons.Outlined.CalendarMonth, "Member since", it.take(10)) }
+                AdsBannerRow(Icons.Outlined.Person,        "Name",          user.full_name)
+                user.phone?.let         { AdsBannerRow(Icons.Outlined.Phone,         "Phone",         it) }
+                AdsBannerRow(Icons.Outlined.Badge,         "Role",          user.role.replaceFirstChar { it.uppercase() })
+                user.date_of_birth?.let { AdsBannerRow(Icons.Outlined.Cake,          "Date of birth", it) }
+                user.location?.let      { AdsBannerRow(Icons.Outlined.LocationOn,    "Location",      it) }
+                user.bio?.let           { AdsBannerRow(Icons.Outlined.Notes,         "Bio",           it) }
+                user.created_at?.let    { AdsBannerRow(Icons.Outlined.CalendarMonth, "Member since",  it.take(10)) }
 
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -501,7 +561,7 @@ private fun PublisherBanner(
     }
 }
 
-// ─── Mini components ─────────────────────────────────────────────────────────
+// ─── Mini components ──────────────────────────────────────────────────────────
 
 @Composable
 private fun AdsBannerRow(icon: ImageVector, label: String, value: String) {
@@ -516,8 +576,10 @@ private fun AdsBannerRow(icon: ImageVector, label: String, value: String) {
 @Composable
 private fun AdsBadge(label: String, color: Color) {
     Surface(shape = RoundedCornerShape(20.dp), color = color.copy(alpha = 0.12f)) {
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = color,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
+        Text(
+            label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = color,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+        )
     }
 }
 
@@ -533,16 +595,18 @@ private fun AdsMetaRow(icon: ImageVector, text: String) {
 @Composable
 private fun AdsInfoChip(icon: ImageVector, label: String) {
     Surface(shape = RoundedCornerShape(20.dp), color = Color(0xFFEEF7E8)) {
-        Row(modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(
+            modifier              = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+            verticalAlignment     = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
             Icon(icon, null, tint = GreenPrimaryDark, modifier = Modifier.size(11.dp))
             Text(label, fontSize = 11.sp, color = GreenPrimaryDark)
         }
     }
 }
 
-// ─── Timestamp ────────────────────────────────────────────────────────────────
+// ─── Timestamp helper ─────────────────────────────────────────────────────────
 
 private fun adsFormatTime(raw: String?): String = try {
     val instant = Instant.parse(raw ?: return "—")

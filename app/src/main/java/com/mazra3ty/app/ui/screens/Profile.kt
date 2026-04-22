@@ -1,4 +1,5 @@
 package com.mazra3ty.app.ui.screens
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -21,9 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
-import com.mazra3ty.app.database.types.Profile
 import com.mazra3ty.app.database.types.Review
-import com.mazra3ty.app.database.types.User
+import com.mazra3ty.app.database.types.UserWithProfile
 import com.mazra3ty.app.database.types.WorkerPost
 import com.mazra3ty.app.ui.theme.*
 import io.github.jan.supabase.postgrest.postgrest
@@ -40,33 +40,28 @@ fun ProfileScreen(
 ) {
     val scope = rememberCoroutineScope()
 
-    var user     by remember { mutableStateOf<User?>(null) }
-    var profile  by remember { mutableStateOf<Profile?>(null) }
-    var reviews  by remember { mutableStateOf<List<Review>>(emptyList()) }
-    var posts    by remember { mutableStateOf<List<WorkerPost>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    var userWithProfile by remember { mutableStateOf<UserWithProfile?>(null) }
+    var reviews         by remember { mutableStateOf<List<Review>>(emptyList()) }
+    var posts           by remember { mutableStateOf<List<WorkerPost>>(emptyList()) }
+    var isLoading       by remember { mutableStateOf(true) }
 
     LaunchedEffect(userId) {
         scope.launch {
             try {
-                user = SupabaseClientProvider.client
-                    .postgrest["users"]
-                    .select { filter { eq("id", userId) } }
-                    .decodeSingle()
-
-                profile = runCatching {
-                    SupabaseClientProvider.client
-                        .postgrest["profiles"]
-                        .select { filter { eq("user_id", userId) } }
-                        .decodeSingle<Profile>()
-                }.getOrNull()
+                // Join users and profiles
+                userWithProfile = SupabaseClientProvider.client
+                    .postgrest["user_with_profile"]
+                    .select {
+                        filter { eq("id", userId) }
+                    }
+                    .decodeSingle<UserWithProfile>()
 
                 reviews = SupabaseClientProvider.client
                     .postgrest["reviews"]
                     .select { filter { eq("reviewed_id", userId) } }
                     .decodeList()
 
-                if (user?.role == "worker") {
+                if (userWithProfile?.role == "worker") {
                     posts = SupabaseClientProvider.client
                         .postgrest["worker_posts"]
                         .select { filter { eq("worker_id", userId) } }
@@ -99,8 +94,6 @@ fun ProfileScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-
-
             )
         },
         containerColor = Color(0xFFF5F5F5)
@@ -112,8 +105,8 @@ fun ProfileScreen(
             }
             return@Scaffold
         }
-
-        val currentUser = user ?: run {
+        Log.d("ProfileScreen", "userWithProfile = $userWithProfile")
+        val data = userWithProfile ?: run {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("User not found", color = Color.Gray)
             }
@@ -131,8 +124,7 @@ fun ProfileScreen(
 
             // ── Header (Cover + Avatar) ────────────────────────────────────
             ProfileHeader(
-                user        = currentUser,
-                profile     = profile,
+                user        = data,
                 avgRating   = avgRating,
                 reviewCount = reviews.size,
                 padding     = padding
@@ -147,8 +139,8 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
 
-                // ── Bio ───────────────────────────────────────────────────
-                currentUser.bio?.takeIf { it.isNotBlank() }?.let { bio ->
+                // ── Bio (Now from profile) ─────────────────────────────────
+                data.bio?.takeIf { it.isNotBlank() }?.let { bio ->
                     SectionCard(title = "About") {
                         Text(
                             text  = bio,
@@ -162,32 +154,30 @@ fun ProfileScreen(
                 // ── Info ──────────────────────────────────────────────────
                 SectionCard(title = "Information") {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        currentUser.email?.let {
-                            InfoRow(Icons.Outlined.Email, "Email", it)
-                        }
-                        currentUser.phone?.let {
+                        InfoRow(Icons.Outlined.Person, "Full Name", data.full_name)
+                        data.phone?.let {
                             InfoRow(Icons.Outlined.Phone, "Phone", it)
                         }
-                        profile?.location?.let {
+                        data.location?.let {
                             InfoRow(Icons.Outlined.LocationOn, "Location", it)
                         }
-                        currentUser.date_of_birth?.let {
+                        data.date_of_birth?.let {
                             InfoRow(Icons.Outlined.Cake, "Date of Birth", it)
                         }
-                        currentUser.created_at?.let {
+                        data.created_at?.let {
                             val joined = it.take(10) // "YYYY-MM-DD"
                             InfoRow(Icons.Outlined.CalendarToday, "Joined", joined)
                         }
                         InfoRow(
                             icon  = Icons.Outlined.Badge,
                             label = "Role",
-                            value = currentUser.role.replaceFirstChar { it.uppercase() }
+                            value = data.role.replaceFirstChar { it.uppercase() }
                         )
                     }
                 }
 
-                // ── Skills ────────────────────────────────────────────────
-                profile?.skills?.takeIf { it.isNotBlank() }?.let { skills ->
+                // ── Skills (Now from profile, List<String>) ───────────────
+                data.skills?.takeIf { it.isNotEmpty() }?.let { skills ->
                     SectionCard(title = "Skills") {
                         SkillsChips(skills)
                     }
@@ -241,8 +231,7 @@ fun ProfileScreen(
 
 @Composable
 private fun ProfileHeader(
-    user: User,
-    profile: Profile?,
+    user: UserWithProfile,
     avgRating: Float,
     reviewCount: Int,
     padding: PaddingValues
@@ -252,7 +241,8 @@ private fun ProfileHeader(
             .fillMaxWidth()
             .padding(top = padding.calculateTopPadding())
     ) {
-        // Cover image / gradient banner
+
+        // 🔹 Cover / Gradient
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -268,12 +258,12 @@ private fun ProfileHeader(
                     )
                 )
         ) {
-            // Subtle pattern overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.08f))
             )
+
             Icon(
                 imageVector = Icons.Outlined.Agriculture,
                 contentDescription = null,
@@ -285,17 +275,19 @@ private fun ProfileHeader(
             )
         }
 
-        // Avatar + name block
+        // 🔹 Content
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Spacer(Modifier.height(140.dp)) // push avatar to overlap banner
 
-            // Avatar with badge
+            Spacer(Modifier.height(140.dp))
+
+            // 🔹 Avatar
             Box(modifier = Modifier.size(90.dp)) {
+
                 Box(
                     modifier = Modifier
                         .size(88.dp)
@@ -304,22 +296,34 @@ private fun ProfileHeader(
                         .border(3.dp, Color.White, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(GreenPrimary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = user.full_name.take(1).uppercase(),
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GreenPrimaryDark
+
+                    if (!user.image_url.isNullOrEmpty()) {
+                        coil.compose.AsyncImage(
+                            model = user.image_url,
+                            contentDescription = "User Image",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(GreenPrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = user.full_name.take(1).uppercase(),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GreenPrimaryDark
+                            )
+                        }
                     }
                 }
-                // Verified badge
+
+                // 🔹 Verified badge
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -331,7 +335,7 @@ private fun ProfileHeader(
                 ) {
                     Icon(
                         Icons.Outlined.Check,
-                        null,
+                        contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
@@ -340,7 +344,7 @@ private fun ProfileHeader(
 
             Spacer(Modifier.height(10.dp))
 
-            // Name
+            // 🔹 Name
             Text(
                 text = user.full_name,
                 fontWeight = FontWeight.Bold,
@@ -348,23 +352,32 @@ private fun ProfileHeader(
                 color = TextPrimary
             )
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
 
-            // Location
-            profile?.location?.let { loc ->
+            // 🔹 Location
+            user.location?.let { loc ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.LocationOn, null, tint = GrayMedium, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(3.dp))
-                    Text(loc, fontSize = 13.sp, color = GrayDark)
+                    Icon(
+                        Icons.Outlined.LocationOn,
+                        contentDescription = null,
+                        tint = GrayMedium,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = loc,
+                        fontSize = 13.sp,
+                        color = GrayDark
+                    )
                 }
-                Spacer(Modifier.height(4.dp))
             }
 
-            // Role chip
+            Spacer(Modifier.height(6.dp))
+
+            // 🔹 Role
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = GreenPrimary.copy(alpha = 0.12f),
-                modifier = Modifier.wrapContentSize()
+                color = GreenPrimary.copy(alpha = 0.12f)
             ) {
                 Text(
                     text = user.role.replaceFirstChar { it.uppercase() },
@@ -375,12 +388,17 @@ private fun ProfileHeader(
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Rating row
+            // 🔹 Rating
             if (reviewCount > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Star, null, tint = Color(0xFFFFC107), modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Outlined.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFC107),
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "%.1f".format(avgRating),
@@ -390,16 +408,16 @@ private fun ProfileHeader(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "($reviewCount Avis)",
+                        text = "($reviewCount reviews)",
                         fontSize = 13.sp,
                         color = GrayMedium
                     )
                 }
             }
 
-            // Ban badge (admin view)
+            // 🔹 Ban badge
             if (user.is_banned) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = RedError.copy(alpha = 0.1f)
@@ -408,9 +426,19 @@ private fun ProfileHeader(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.Block, null, tint = RedError, modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Outlined.Block,
+                            contentDescription = null,
+                            tint = RedError,
+                            modifier = Modifier.size(14.dp)
+                        )
                         Spacer(Modifier.width(4.dp))
-                        Text("Banned", color = RedError, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Banned",
+                            color = RedError,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -474,13 +502,12 @@ private fun StatItem(value: String, label: String) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SkillsChips(skills: String) {
-    val list = skills.split(",").map { it.trim() }.filter { it.isNotBlank() }
+private fun SkillsChips(skills: List<String>) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement   = Arrangement.spacedBy(8.dp)
     ) {
-        list.forEach { skill ->
+        skills.forEach { skill ->
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = SoftGreenBg
@@ -571,4 +598,3 @@ private fun WorkerPostItem(post: WorkerPost) {
         }
     }
 }
-

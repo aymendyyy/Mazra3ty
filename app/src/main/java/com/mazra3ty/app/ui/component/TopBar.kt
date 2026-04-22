@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
@@ -38,7 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mazra3ty.app.database.types.User
+import com.mazra3ty.app.database.types.UserWithProfile
 import com.mazra3ty.app.ui.theme.GrayDark
 import com.mazra3ty.app.ui.theme.GrayLight
 import com.mazra3ty.app.ui.theme.GrayMedium
@@ -48,7 +47,7 @@ import com.mazra3ty.app.ui.theme.TextPrimary
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
 @Composable
 fun HomeTopBar(
-    user: User,
+    user: UserWithProfile,
     searchQuery: String,
     unreadCount: Int = 0,
     onSearchChange: (String) -> Unit,

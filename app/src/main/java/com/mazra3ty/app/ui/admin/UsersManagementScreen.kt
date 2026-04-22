@@ -28,20 +28,39 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
+import com.mazra3ty.app.database.types.Profile
 import com.mazra3ty.app.database.types.User
-import com.mazra3ty.app.database.types.UserImage
 import com.mazra3ty.app.ui.theme.GreenPrimary
 import com.mazra3ty.app.ui.theme.GreenPrimaryDark
 import com.mazra3ty.app.ui.theme.Mazra3tyTheme
 import com.mazra3ty.app.ui.theme.RedError
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 // ─── User section tabs ────────────────────────────────────────────────────────
 
 private enum class UserTab { ACTIVE, DELETED }
 
+@Serializable
+data class AdminUserDto(
+    val id: String,
+    val full_name: String,
+    val phone: String? = null,
+    val role: String,
+    val date_of_birth: String? = null,
+    val is_banned: Boolean = false,
+    val is_deleted: Boolean = false,
+    val created_at: String? = null,
+    val banned_at: String? = null,
+    val banned_reason: String? = null,
+
+    // from profile (flattened)
+    val location: String? = null,
+    val skills: List<String>? = null,
+    val image_url: String? = null,
+    val bio: String? = null
+)
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,10 +71,8 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     val isPreview = LocalInspectionMode.current
 
     // ── Data ──────────────────────────────────────────────────────────────────
-    var activeUsers  by remember { mutableStateOf<List<User>>(emptyList()) }
-    var deletedUsers by remember { mutableStateOf<List<User>>(emptyList()) }
-    // userId → first image URL from user_images
-    var userImages   by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var activeUsers  by remember { mutableStateOf<List<AdminUserDto>>(emptyList()) }
+    var deletedUsers by remember { mutableStateOf<List<AdminUserDto>>(emptyList()) }
     var isLoading    by remember { mutableStateOf(true) }
 
     // ── UI ────────────────────────────────────────────────────────────────────
@@ -64,43 +81,25 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     var filterRole     by remember { mutableStateOf<String?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
     var expandedUserId by remember { mutableStateOf<String?>(null) }
-    var userToDelete   by remember { mutableStateOf<User?>(null) }
+    var userToDelete   by remember { mutableStateOf<AdminUserDto?>(null) }
 
     // ── Load ──────────────────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
         if (isPreview) {
-            // Preview mock data
-            activeUsers = listOf(
-                User("1", "Ahmed Farmer", "ahmed@test.com", "+213555000001", "farmer", is_banned = false),
-                User("2", "Sara Worker",  "sara@test.com",  "+213555000002", "worker", is_banned = true),
-                User("3", "Mohamed W.",   "med@test.com",   null,            "worker", is_banned = false)
-            )
-            deletedUsers = listOf(
-                User("4", "Deleted User", "del@test.com", null, "farmer",
-                    is_deleted = true, created_at = "2024-01-15T10:00:00Z")
-            )
             isLoading = false
             return@LaunchedEffect
         }
 
         scope.launch {
             try {
-                // Active users (not deleted)
-                activeUsers = SupabaseClientProvider.client
-                    .from("users").select { filter { eq("is_deleted", false) } }
-                    .decodeList()
+                // Fetch all users with profiles joined
+                val allUsers = SupabaseClientProvider.client
+                    .from("user_with_profile")
+                    .select()
+                    .decodeList<AdminUserDto>()
 
-                // Deleted users
-                deletedUsers = SupabaseClientProvider.client
-                    .from("users").select { filter { eq("is_deleted", true) } }
-                    .decodeList()
-
-                // Profile pictures: one image per user (first found)
-                val images: List<UserImage> = SupabaseClientProvider.client
-                    .postgrest["user_images"].select().decodeList()
-                userImages = images
-                    .groupBy { it.user_id }
-                    .mapValues { (_, list) -> list.first().image_url }
+                activeUsers = allUsers.filter { !it.is_deleted }
+                deletedUsers = allUsers.filter { it.is_deleted }
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -111,9 +110,8 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     }
 
     // ── Filtered lists ────────────────────────────────────────────────────────
-    fun List<User>.applyFilters() = filter { user ->
-        val matchSearch = user.full_name.contains(searchQuery, ignoreCase = true) ||
-                user.email?.contains(searchQuery, ignoreCase = true) == true
+    fun List<AdminUserDto>.applyFilters() = filter { user ->
+        val matchSearch = user.full_name.contains(searchQuery, ignoreCase = true)
         val matchRole   = filterRole == null || user.role == filterRole
         matchSearch && matchRole
     }
@@ -153,12 +151,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                         if (isDeleted) RedError else GreenPrimary
                     } else {
                         Color.White.copy(alpha = 0.9f)
-                    }
-
-                    val borderColor = if (isSelected) {
-                        if (isDeleted) RedError else GreenPrimary
-                    } else {
-                        Color(0xFFE0E0E0)
                     }
 
                     Surface(
@@ -268,7 +260,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                             items(filteredActive, key = { it.id }) { user ->
                                 UserCard(
                                     user        = user,
-                                    imageUrl    = userImages[user.id],
                                     isExpanded  = expandedUserId == user.id,
                                     isDeleted   = false,
                                     onToggle    = { expandedUserId = if (expandedUserId == user.id) null else user.id },
@@ -305,7 +296,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                             items(filteredDeleted, key = { it.id }) { user ->
                                 UserCard(
                                     user        = user,
-                                    imageUrl    = userImages[user.id],
                                     isExpanded  = expandedUserId == user.id,
                                     isDeleted   = true,
                                     onToggle    = { expandedUserId = if (expandedUserId == user.id) null else user.id },
@@ -331,19 +321,14 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                 TextButton(onClick = {
                     scope.launch {
                         try {
-
                             if (user.is_deleted) {
-                                // 🔴 HARD DELETE (حذف نهائي)
                                 SupabaseClientProvider.client
                                     .from("users")
                                     .delete {
                                         filter { eq("id", user.id) }
                                     }
-
                                 deletedUsers = deletedUsers.filter { it.id != user.id }
-
                             } else {
-                                // 🟢 SOFT DELETE
                                 SupabaseClientProvider.client
                                     .from("users")
                                     .update(
@@ -351,13 +336,10 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                                     ) {
                                         filter { eq("id", user.id) }
                                     }
-
                                 activeUsers = activeUsers.filter { it.id != user.id }
                                 deletedUsers = deletedUsers + user.copy(is_deleted = true)
                             }
-
                             if (expandedUserId == user.id) expandedUserId = null
-
                         } catch (e: Exception) {
                             e.printStackTrace()
                         } finally {
@@ -379,8 +361,7 @@ fun UsersManagementScreen(onBack: () -> Unit) {
 
 @Composable
 private fun UserCard(
-    user: User,
-    imageUrl: String?,
+    user: AdminUserDto,
     isExpanded: Boolean,
     isDeleted: Boolean,
     onToggle: () -> Unit,
@@ -389,6 +370,7 @@ private fun UserCard(
 ) {
     val isActive    = !user.is_banned
     val accentColor = if (isDeleted) Color(0xFF9E9E9E) else GreenPrimary
+    val imageUrl = user.image_url
 
     val borderColor = when {
         isDeleted -> Color(0xFFBDBDBD)
@@ -417,7 +399,7 @@ private fun UserCard(
                     modifier = Modifier.fillMaxWidth()
                 ) {
 
-                    // ✅ AVATAR (FIXED)
+                    // ✅ AVATAR
                     Box(
                         modifier = Modifier
                             .size(52.dp)
@@ -492,20 +474,17 @@ private fun UserCard(
                     color = Color(0xFFEEEEEE)
                 )
 
-                // 🔹 EMAIL + STATUS
+                // 🔹 STATUS
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            user.email ?: "No email",
+                            user.phone ?: "No phone",
                             fontSize = 12.sp,
                             color = Color.DarkGray
                         )
-                        user.phone?.let {
-                            Text(it, fontSize = 12.sp, color = Color.Gray)
-                        }
                     }
 
                     if (isDeleted) {
@@ -521,12 +500,6 @@ private fun UserCard(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-
-                            Spacer(Modifier.width(6.dp))
-
-                        }
                     }
                 }
             }
@@ -539,7 +512,6 @@ private fun UserCard(
             ) {
                 UserDetailBanner(
                     user = user,
-                    imageUrl = imageUrl,
                     accentColor = accentColor
                 )
             }
@@ -550,7 +522,8 @@ private fun UserCard(
 // ─── Expandable detail banner ─────────────────────────────────────────────────
 
 @Composable
-private fun UserDetailBanner(user: User, imageUrl: String?, accentColor: Color) {
+private fun UserDetailBanner(user: AdminUserDto, accentColor: Color) {
+    val imageUrl = user?.image_url
     Surface(
         color    = accentColor.copy(alpha = 0.06f),
         shape    = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
@@ -575,12 +548,6 @@ private fun UserDetailBanner(user: User, imageUrl: String?, accentColor: Color) 
                     Text("Profile photo: ", fontSize = 12.sp, color = Color.Gray)
                     Text("Available", fontSize = 12.sp, color = GreenPrimaryDark, fontWeight = FontWeight.Medium)
                 }
-                // Image URL (useful for debugging / copy-paste)
-                Text(
-                    imageUrl.take(60) + if (imageUrl.length > 60) "…" else "",
-                    fontSize = 10.sp, color = Color.Gray,
-                    modifier = Modifier.padding(start = 18.dp, bottom = 8.dp)
-                )
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 6.dp)) {
                     Icon(Icons.Outlined.HideImage, null, tint = Color.Gray, modifier = Modifier.size(13.dp))
@@ -594,11 +561,10 @@ private fun UserDetailBanner(user: User, imageUrl: String?, accentColor: Color) 
             // All user fields
             UserBannerRow(Icons.Outlined.Badge,          "User ID",         user.id)
             UserBannerRow(Icons.Outlined.Person,         "Full name",       user.full_name)
-            user.email?.let        { UserBannerRow(Icons.Outlined.Email,         "Email",           it) }
             user.phone?.let        { UserBannerRow(Icons.Outlined.Phone,         "Phone",           it) }
             UserBannerRow(Icons.Outlined.ManageAccounts, "Role",            user.role.replaceFirstChar { it.uppercase() })
             user.date_of_birth?.let{ UserBannerRow(Icons.Outlined.Cake,          "Date of birth",   it) }
-            user.bio?.let          { UserBannerRow(Icons.Outlined.Notes,          "Bio",             it) }
+            user?.bio?.let{ UserBannerRow(Icons.Outlined.Notes,         "Bio",             it) }
             user.created_at?.let   { UserBannerRow(Icons.Outlined.CalendarMonth,  "Joined",          it.take(10)) }
             user.banned_at?.let    { UserBannerRow(Icons.Outlined.Block,          "Banned at",       it.take(10)) }
             user.banned_reason?.let{ UserBannerRow(Icons.Outlined.Report,         "Ban reason",      it) }
