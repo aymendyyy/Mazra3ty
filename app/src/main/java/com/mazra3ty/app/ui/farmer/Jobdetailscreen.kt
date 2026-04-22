@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.Application
-import com.mazra3ty.app.database.types.CreateApplication
 import com.mazra3ty.app.database.types.Job
 import com.mazra3ty.app.database.types.User
 import com.mazra3ty.app.ui.theme.*

@@ -6,31 +6,29 @@ import kotlinx.serialization.Serializable
 data class User(
     val id: String,
     val full_name: String,
-    val email: String? = null,
     val phone: String? = null,
     val role: String,
-
     val date_of_birth: String? = null,
-    val bio: String? = null,
     val is_deleted: Boolean = false,
-
     val is_banned: Boolean = false,
     val banned_at: String? = null,
     val banned_reason: String? = null,
 
     val created_at: String? = null
 )
+
 @Serializable
 data class Profile(
-    val id: String,
-
-    val user_id: String,
+    val user_id: String,                        // PK (no separate id column)
 
     val location: String? = null,
-    val skills: String? = null,
+    val skills: List<String>? = null,           // text[] → List<String>
+    val bio: String? = null,                    // moved here from User
+    val image_url: String? = null,              // new column
 
     val created_at: String? = null
 )
+
 @Serializable
 data class Job(
     val id: String,
@@ -47,6 +45,7 @@ data class Job(
 
     val created_at: String? = null
 )
+
 @Serializable
 data class Application(
     val id: String,
@@ -58,6 +57,7 @@ data class Application(
 
     val created_at: String? = null
 )
+
 @Serializable
 data class Message(
     val id: String,
@@ -69,6 +69,7 @@ data class Message(
 
     val created_at: String? = null
 )
+
 @Serializable
 data class Review(
     val id: String,
@@ -81,6 +82,7 @@ data class Review(
 
     val created_at: String? = null
 )
+
 @Serializable
 data class UserImage(
     val id: String,
@@ -90,6 +92,7 @@ data class UserImage(
 
     val created_at: String? = null
 )
+
 @Serializable
 data class WorkerPost(
     val id: String,
@@ -102,6 +105,7 @@ data class WorkerPost(
     val created_at: String? = null,
     val updated_at: String? = null
 )
+
 @Serializable
 data class CreateJob(
     val title: String,
@@ -110,6 +114,7 @@ data class CreateJob(
     val location: String? = null,
     val salary: Double? = null
 )
+
 @Serializable
 data class CreateWorkerPost(
     val worker_id: String,
@@ -118,19 +123,20 @@ data class CreateWorkerPost(
     val skills: List<String> = emptyList(),
     val location: String? = null,
     val status: WorkerPostStatus? = null
-    )
+)
 
 enum class WorkerPostStatus {
     active,
     inactive
 }
+
 @Serializable
 data class Sponsor(
     val id: String,
     val name: String,
-    val tagline: String? = null,       // e.g. "Best fertilizers in Algeria"
-    val image_url: String? = null,     // banner / logo URL
-    val redirect_url: String? = null,  // optional deep-link or external URL
+    val tagline: String? = null,
+    val image_url: String? = null,
+    val redirect_url: String? = null,
     val is_active: Boolean = true,
     val created_at: String? = null
 )
@@ -165,9 +171,21 @@ data class CreateNotification(
     val title: String,
     val message: String,
     val type: String
-)@Serializable
-data class CreateApplication(
-    val job_id: String,
-    val worker_id: String,
-    val status: String = "pending"
+)
+@Serializable
+data class UserWithProfile(
+    // ── from users ──────────────────────────────────────────
+    val id: String,
+    val full_name: String,
+    val phone: String? = null,
+    val role: String,
+    val date_of_birth: String? = null,
+    val is_banned: Boolean = false,
+    val created_at: String? = null,
+
+    // ── from profiles (nullable – left join) ─────────────────
+    val location: String? = null,
+    val skills: List<String>? = null,
+    val image_url: String? = null,
+    val bio: String? = null
 )

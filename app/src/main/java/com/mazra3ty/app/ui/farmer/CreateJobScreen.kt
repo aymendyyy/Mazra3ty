@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.CreateJob
 import com.mazra3ty.app.database.types.Job
+import com.mazra3ty.app.ui.component.MapPickerDialog
 import com.mazra3ty.app.ui.theme.*
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
@@ -590,7 +592,8 @@ private fun JobFormSheet(
                 placeholder = "e.g. Olive Harvest Helper",
                 icon = Icons.Outlined.WorkOutline,
                 isError = jobTitle.isNotBlank() && titleError,
-                errorMessage = "Title is required"
+                errorMessage = "Title is required",
+                modifier = Modifier.fillMaxWidth()
             )
 
             // Description field
@@ -608,13 +611,47 @@ private fun JobFormSheet(
             )
 
             // Location field
-            FormField(
-                value = location,
-                onValueChange = { location = it },
-                label = "Location",
-                placeholder = "e.g. Ouargla, Algeria",
-                icon = Icons.Outlined.LocationOn
-            )
+            // ── inside JobFormSheet, replace the plain location FormField ──────────────
+
+            var showMapPicker by remember { mutableStateOf(false) }
+
+// Location field with Map button
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FormField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = "Location",
+                    placeholder = "e.g. Ouargla, Algeria",
+                    icon = Icons.Outlined.LocationOn,
+                    modifier = Modifier.weight(1f)      // ← add modifier param to FormField (see below)
+                )
+                // 🗺 Map picker button
+                IconButton(
+                    onClick = { showMapPicker = true },
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(GreenPrimary.copy(alpha = 0.1f))
+                        .border(1.dp, GreenPrimary.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                ) {
+                    Icon(Icons.Outlined.Map, contentDescription = "Pick on map", tint = GreenPrimary)
+                }
+            }
+
+// Map picker dialog
+            if (showMapPicker) {
+                MapPickerDialog(
+                    initialAddress = location,
+                    onLocationPicked = { address, lat, lng ->
+                        location = address          // fills the text field
+                        showMapPicker = false
+                    },
+                    onDismiss = { showMapPicker = false }
+                )
+            }
 
             // Salary field
             FormField(
@@ -625,7 +662,8 @@ private fun JobFormSheet(
                 icon = Icons.Outlined.Payments,
                 keyboardType = KeyboardType.Number,
                 isError = salaryError,
-                errorMessage = "Enter a valid number"
+                errorMessage = "Enter a valid number",
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(4.dp))
@@ -692,11 +730,14 @@ private fun FormField(
     onValueChange: (String) -> Unit,
     label: String,
     placeholder: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     keyboardType: KeyboardType = KeyboardType.Text,
     isError: Boolean = false,
-    errorMessage: String = ""
-) {
+    errorMessage: String = "",
+    modifier: Modifier,
+
+
+    ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
