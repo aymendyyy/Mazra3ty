@@ -236,6 +236,21 @@ private fun AdminNavHost(
     var currentRoute by remember { mutableStateOf(AdminRoutes.DASHBOARD) }
 
     Scaffold(
+        topBar = {
+            // currentRoute is passed so the title updates on every navigation
+            AdminTopBar(
+                currentRoute = currentRoute,
+                onLogout     = onLogout,
+                onNavigate   = { route ->
+                    currentRoute = route
+                    navController.navigate(route) {
+                        popUpTo(AdminRoutes.DASHBOARD) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            )
+        },
         bottomBar = {
             AdminBottomBar(
                 currentRoute = currentRoute,
@@ -268,6 +283,9 @@ private fun AdminNavHost(
                         }
                     },
                     onLogout = onLogout
+                AdminHome(
+                    userEmail = userEmail,
+                    onLogout  = onLogout
                 )
             }
             composable(AdminRoutes.USERS) {
