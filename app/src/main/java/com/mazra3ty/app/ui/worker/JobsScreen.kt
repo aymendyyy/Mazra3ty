@@ -20,6 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.ui.theme.*
+import androidx.compose.runtime.LaunchedEffect
+import com.mazra3ty.app.database.SupabaseClientProvider
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 
 @Composable
 fun JobsScreen(
@@ -33,53 +37,66 @@ fun JobsScreen(
 
     val chips = listOf("All", "Recent", "Palmes", "Trees", "Explore")
 
-    // ===== بيانات الوظائف =====
-    val allJobs = listOf(
-        Job(
-            id           = "1",
-            title        = "Tomato Picker",
-            price        = "3000 da",
-            duration     = "3 Days",
-            location     = "Ghardaia • 3 km",
-            category     = "All",
-            description  = "We need experienced tomato pickers for our farm. Work starts early morning and ends at noon.",
-            farmerName   = "Ahmed Benali",
-            farmerEmail  = "ahmed@farm.dz",
-            requirements = "- Physical fitness\n- Experience in harvesting\n- Available for 3 days",
-            postedDate   = "2 days ago"
-        ),
-        Job(
-            id           = "2",
-            title        = "Palm Harvester",
-            price        = "2500 da",
-            duration     = "5 Days",
-            location     = "Ghardaia • 5 km",
-            category     = "Palmes",
-            description  = "Harvest dates from palm trees. Tools provided by the farm.",
-            farmerName   = "Karim Ouled",
-            farmerEmail  = "karim@palms.dz",
-            requirements = "- Not afraid of heights\n- Good physical condition",
-            postedDate   = "1 day ago"
-        ),
-        Job(
-            id           = "3",
-            title        = "Tree Planter",
-            price        = "2000 da",
-            duration     = "2 Days",
-            location     = "Ghardaia • 1 km",
-            category     = "Trees",
-            description  = "Plant young olive trees in our new field. Training provided.",
-            farmerName   = "Youcef Hamdi",
-            farmerEmail  = "youcef@olive.dz",
-            requirements = "- No experience needed\n- Must be punctual",
-            postedDate   = "Today"
-        )
-    )
+    // ===== جلب البيانات من Supabase =====
+    var allJobs   by remember { mutableStateOf<List<Job>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var error     by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            // 1. جلب الوظائف من جدول jobs
+            val dbJobs = SupabaseClientProvider.client
+                .postgrest["jobs"]
+                .select()
+                .decodeList<com.mazra3ty.app.database.types.Job>()
+
+            // 2. جلب أسماء المزارعين من جدول users
+            val farmerIds = dbJobs.map { it.farmer_id }.distinct()
+            val farmers = if (farmerIds.isNotEmpty()) {
+                SupabaseClientProvider.client
+                    .postgrest["users"]
+                    .select {
+                        filter {
+                            isIn("id", farmerIds)
+                        }
+                    }
+                    .decodeList<com.mazra3ty.app.database.types.User>()
+            } else emptyList()
+
+            val farmerMap = farmers.associateBy { it.id }
+
+            // 3. تحويل البيانات إلى Job الخاص بالواجهة
+            allJobs = dbJobs.map { dbJob ->
+                val farmer = farmerMap[dbJob.farmer_id]
+                Job(
+                    id          = dbJob.id,
+                    title       = dbJob.title,
+                    price       = if (dbJob.salary != null) "${dbJob.salary.toInt()} DA" else "Negotiable",
+                    duration    = "",
+                    location    = dbJob.location ?: "",
+                    category    = "All",
+                    description = dbJob.description,
+                    farmerName  = farmer?.full_name ?: "Farm Owner",
+                    farmerEmail = farmer?.email ?: "",
+                    requirements = "",
+                    postedDate  = dbJob.created_at?.take(10) ?: "",
+                    farmerId    = dbJob.farmer_id
+                )
+            }
+        } catch (e: Exception) {
+            error = e.message
+        } finally {
+            isLoading = false
+        }
+    }
 
     // ===== فلترة الوظائف =====
     val filteredJobs = allJobs.filter { job ->
         val matchChip   = selectedChip == "All" || job.category == selectedChip
-        val matchSearch = job.title.contains(searchQuery, ignoreCase = true)
+        val matchSearch = searchQuery.isBlank() ||
+                job.title.contains(searchQuery.trim(), ignoreCase = true) ||
+                job.location.contains(searchQuery.trim(), ignoreCase = true) ||
+                job.farmerName.contains(searchQuery.trim(), ignoreCase = true)
         matchChip && matchSearch
     }
 
@@ -105,17 +122,49 @@ fun JobsScreen(
                 onChipSelected = { selectedChip = it }
             )
 
-            LazyColumn(
-                modifier       = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(vertical = 8.dp)
-            ) {
-                items(filteredJobs) { job ->
-                    JobCard(
-                        job          = job,
-                        onApplyClick = { selectedJob = it } // ← يفتح التفاصيل
-                    )
+            when {
+                isLoading -> {
+                    Box(
+                        modifier         = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = GreenPrimary)
+                    }
+                }
+                error != null -> {
+                    Box(
+                        modifier         = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Failed to load jobs\n${error}",
+                            color     = TextGray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+                filteredJobs.isEmpty() -> {
+                    Box(
+                        modifier         = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No jobs found", color = TextGray)
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        modifier       = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(filteredJobs) { job ->
+                            JobCard(
+                                job          = job,
+                                onApplyClick = { selectedJob = it }
+                            )
+                        }
+                    }
                 }
             }
         }
