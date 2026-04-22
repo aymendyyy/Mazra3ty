@@ -27,7 +27,6 @@ import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.*
 import com.mazra3ty.app.ui.theme.*
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,7 +52,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     var activeUsers  by remember { mutableStateOf<List<UserWithProfile>>(emptyList()) }
     var deletedUsers by remember { mutableStateOf<List<UserWithProfile>>(emptyList()) }
     // userId → image URL  (filled per batch so ALL users' images are visible)
-    var userImages   by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
     // ── Pagination ────────────────────────────────────────────────────────────
     var activeOffset   by remember { mutableStateOf(0) }
@@ -72,33 +70,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     var selectedUser   by remember { mutableStateOf<UserWithProfile?>(null) }
     var userToDelete   by remember { mutableStateOf<UserWithProfile?>(null) }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Image fetcher: explicitly queries by user IDs (bypasses session-based RLS)
-    // ─────────────────────────────────────────────────────────────────────────
-    suspend fun fetchImagesForBatch(batch: List<UserWithProfile>) {
-        if (batch.isEmpty()) return
-        try {
-            val ids = batch.map { it.id }
-            // Pass each id individually via OR to guarantee cross-account visibility
-            val images = SupabaseClientProvider.client
-                .postgrest["user_images"]
-                .select {
-                    filter {
-                        isIn("user_id", ids)
-                    }
-                }
-                .decodeList<UserImage>()
-
-            // Keep only first image per user, merge into existing map
-            val newEntries = images
-                .groupBy { it.user_id }
-                .mapValues { (_, list) -> list.first().image_url }
-
-            userImages = userImages + newEntries
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
 
     // ── Paginated loaders ─────────────────────────────────────────────────────
     suspend fun loadActivePage() {
@@ -113,7 +84,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                 }
                 .decodeList<UserWithProfile>()
 
-            fetchImagesForBatch(batch)
             activeUsers  = activeUsers + batch
             activeOffset += batch.size
             if (batch.size < PAGE_SIZE) hasMoreActive = false
@@ -136,7 +106,6 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                 }
                 .decodeList<UserWithProfile>()
 
-            fetchImagesForBatch(batch)
             deletedUsers  = deletedUsers + batch
             deletedOffset += batch.size
             if (batch.size < PAGE_SIZE) hasMoreDeleted = false
@@ -361,7 +330,7 @@ fun UsersManagementScreen(onBack: () -> Unit) {
                             items(currentList, key = { it.id }) { user ->
                                 UserCard(
                                     user          = user,
-                                    imageUrl      = userImages[user.id],
+                                    imageUrl = user.image_url,
                                     isExpanded    = expandedId == user.id,
                                     isDeletedView = isDelView || user.is_deleted,
                                     onToggle      = { expandedId = if (expandedId == user.id) null else user.id },
@@ -439,7 +408,7 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     selectedUser?.let { user ->
         UserProfileSheet(
             user        = user,
-            imageUrl    = userImages[user.id],
+            imageUrl    = user.image_url,
             onDismiss   = { selectedUser = null },
             onDelete    = { userToDelete = user; selectedUser = null },
             onToggleBan = { ban ->

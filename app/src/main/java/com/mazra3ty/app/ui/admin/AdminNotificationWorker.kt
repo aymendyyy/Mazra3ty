@@ -1,5 +1,4 @@
-package com.mazra3ty.app.notifications
-
+package com.mazra3ty.app.ui.admin
 /**
  * ─────────────────────────────────────────────────────────────────────────────
  *  REQUIRED dependencies (add to build.gradle.kts):
@@ -33,10 +32,9 @@ import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.*
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.IOException
-import java.net.SocketTimeoutException
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
@@ -103,21 +101,13 @@ class AdminNotificationWorker(
     workerParams: WorkerParameters
 ) : CoroutineWorker(context, workerParams) {
 
-    override suspend fun doWork(): Result = kotlinx.coroutines.coroutineScope {
+    override suspend fun doWork(): Result = coroutineScope {
         runCatching {
 
             val prefs = context.getSharedPreferences(PREFS_STAMP, Context.MODE_PRIVATE)
             val lastCheck = prefs.getString(KEY_LAST_CHECK, null)
                 ?: Instant.now().minus(1, ChronoUnit.HOURS).toString()
 
-            Log.d(TAG, "Worker started - checking for updates since: $lastCheck")
-
-            createNotificationChannel()
-
-            val incoming = mutableListOf<PersistedNotification>()
-            var sysNotifId = NOTIF_BASE_ID
-
-            // ✅ NOW async is valid
             val newUsersDeferred = async {
                 SupabaseClientProvider.client.postgrest["users"]
                     .select { filter { gte("created_at", lastCheck) } }
@@ -149,8 +139,7 @@ class AdminNotificationWorker(
 
             Result.success()
 
-        }.getOrElse { e ->
-            Log.e(TAG, "Worker failed: ${e.message}", e)
+        }.getOrElse {
             Result.retry()
         }
     }

@@ -66,6 +66,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     // Coil (image loading)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.work.runtime.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
