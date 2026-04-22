@@ -50,8 +50,8 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     val context = LocalContext.current
 
     // ── Data ──────────────────────────────────────────────────────────────────
-    var activeUsers  by remember { mutableStateOf<List<User>>(emptyList()) }
-    var deletedUsers by remember { mutableStateOf<List<User>>(emptyList()) }
+    var activeUsers  by remember { mutableStateOf<List<UserWithProfile>>(emptyList()) }
+    var deletedUsers by remember { mutableStateOf<List<UserWithProfile>>(emptyList()) }
     // userId → image URL  (filled per batch so ALL users' images are visible)
     var userImages   by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
 
@@ -69,13 +69,13 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     var filterRole     by remember { mutableStateOf<String?>(null) }
     var showFilterMenu by remember { mutableStateOf(false) }
     var expandedId     by remember { mutableStateOf<String?>(null) }
-    var selectedUser   by remember { mutableStateOf<User?>(null) }
-    var userToDelete   by remember { mutableStateOf<User?>(null) }
+    var selectedUser   by remember { mutableStateOf<UserWithProfile?>(null) }
+    var userToDelete   by remember { mutableStateOf<UserWithProfile?>(null) }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Image fetcher: explicitly queries by user IDs (bypasses session-based RLS)
     // ─────────────────────────────────────────────────────────────────────────
-    suspend fun fetchImagesForBatch(batch: List<User>) {
+    suspend fun fetchImagesForBatch(batch: List<UserWithProfile>) {
         if (batch.isEmpty()) return
         try {
             val ids = batch.map { it.id }
@@ -106,12 +106,12 @@ fun UsersManagementScreen(onBack: () -> Unit) {
         isLoadingMore = true
         try {
             val batch = SupabaseClientProvider.client
-                .from("users")
+                .from("user_with_profile")
                 .select {
                     filter { eq("is_deleted", false) }
                     range(activeOffset.toLong(), (activeOffset + PAGE_SIZE - 1).toLong())
                 }
-                .decodeList<User>()
+                .decodeList<UserWithProfile>()
 
             fetchImagesForBatch(batch)
             activeUsers  = activeUsers + batch
@@ -129,12 +129,12 @@ fun UsersManagementScreen(onBack: () -> Unit) {
         isLoadingMore = true
         try {
             val batch = SupabaseClientProvider.client
-                .from("users")
+                .from("user_with_profile")
                 .select {
                     filter { eq("is_deleted", true) }
                     range(deletedOffset.toLong(), (deletedOffset + PAGE_SIZE - 1).toLong())
                 }
-                .decodeList<User>()
+                .decodeList<UserWithProfile>()
 
             fetchImagesForBatch(batch)
             deletedUsers  = deletedUsers + batch
@@ -157,7 +157,7 @@ fun UsersManagementScreen(onBack: () -> Unit) {
     }
 
     // ── Client-side filter ────────────────────────────────────────────────────
-    fun List<User>.filtered() = filter { u ->
+    fun List<UserWithProfile>.filtered() = filter { u ->
         val q = searchQuery.trim()
         val matchSearch = q.isBlank()
                 || u.full_name.contains(q, ignoreCase = true)
@@ -533,7 +533,7 @@ fun UsersManagementScreen(onBack: () -> Unit) {
 
 @Composable
 private fun UserCard(
-    user: User,
+    user: UserWithProfile,
     imageUrl: String?,
     isExpanded: Boolean,
     isDeletedView: Boolean,
@@ -722,7 +722,7 @@ private fun UserCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UserProfileSheet(
-    user: User,
+    user: UserWithProfile,
     imageUrl: String?,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,

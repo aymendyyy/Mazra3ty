@@ -18,7 +18,6 @@ import com.mazra3ty.app.notifications.AdminNotificationWorker
 
 @Composable
 fun AdminHome(
-    userEmail: String,
     onLogout:  () -> Unit
 ) {
     var currentRoute by remember { mutableStateOf(AdminScreen.Dashboard.route) }

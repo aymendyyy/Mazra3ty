@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class User(
     val id: String,
+    val email: String,
     val full_name: String,
     val phone: String? = null,
     val role: String,
@@ -178,9 +179,13 @@ data class UserWithProfile(
     val id: String,
     val full_name: String,
     val phone: String? = null,
+    val email: String? = null,
     val role: String,
     val date_of_birth: String? = null,
     val is_banned: Boolean = false,
+    val is_deleted: Boolean = false,
+    val banned_at: String? = null,
+    val banned_reason: String? = null,
     val created_at: String? = null,
 
     // ── from profiles (nullable – left join) ─────────────────

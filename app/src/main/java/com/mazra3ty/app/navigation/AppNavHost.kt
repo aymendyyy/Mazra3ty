@@ -3,38 +3,17 @@ package com.mazra3ty.app.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.mazra3ty.app.ui.admin.AdminBottomBar
-import com.mazra3ty.app.ui.admin.AdminDashboardScreen
-import com.mazra3ty.app.ui.admin.AdsMonitorScreen
-import com.mazra3ty.app.ui.admin.ReportsScreen
-import com.mazra3ty.app.ui.admin.ReviewsMonitorScreen
-import com.mazra3ty.app.ui.admin.StatisticsScreen
-import com.mazra3ty.app.ui.admin.UsersManagementScreen
-import com.mazra3ty.app.ui.component.FarmerBottomBar
-import com.mazra3ty.app.ui.component.WorkerBottomBar
-import com.mazra3ty.app.ui.farmer.FarmerHomeScreen
-import com.mazra3ty.app.ui.farmer.FarmerJobsScreen
-import com.mazra3ty.app.ui.farmer.JobDetailScreen
-import com.mazra3ty.app.ui.farmer.NotificationsScreen
-import com.mazra3ty.app.ui.farmer.WorkersPage
-import com.mazra3ty.app.ui.screens.*
-import com.mazra3ty.app.ui.worker.JobsScreen
+import androidx.navigation.compose.*
 
-/**
- * Top-level navigation host — routes to the correct sub-graph based on role.
- * NOTE: userEmail is intentionally removed; email lives in auth.users, not
- * in the public users table, so no screen needs it as a prop anymore.
- */
+import com.mazra3ty.app.ui.admin.*
+import com.mazra3ty.app.ui.component.*
+import com.mazra3ty.app.ui.farmer.*
+import com.mazra3ty.app.ui.worker.JobsScreen
+import com.mazra3ty.app.ui.screens.*
+
 @Composable
 fun AppNavHost(
     userId: String,
@@ -48,9 +27,9 @@ fun AppNavHost(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Worker Navigation Host
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Worker
+// ─────────────────────────────────────────────
 
 @Composable
 private fun WorkerNavHost(
@@ -108,9 +87,9 @@ private fun WorkerNavGraph(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Farmer Navigation Host
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Farmer
+// ─────────────────────────────────────────────
 
 @Composable
 private fun FarmerNavHost(
@@ -169,7 +148,7 @@ private fun FarmerNavGraph(
         }
 
         composable("job_detail/{jobId}") { backStackEntry ->
-            val jobId: String    = backStackEntry.arguments?.getString("jobId")    ?: return@composable
+            val jobId = backStackEntry.arguments?.getString("jobId") ?: return@composable
             JobDetailScreen(
                 jobId = jobId,
                 currentUserId = userId,
@@ -188,7 +167,7 @@ private fun FarmerNavGraph(
             WorkersPage(
                 currentFarmerId = userId,
                 onBack          = { navController.popBackStack() },
-                onSendOffer     = { _, _ -> /* TODO: navigate to chat / offer screen */ }
+                onSendOffer     = { _, _ -> }
             )
         }
 
@@ -200,18 +179,12 @@ private fun FarmerNavGraph(
             )
         }
 
-        // Worker profile viewed by farmer
         composable("profile/{workerId}") { backStackEntry ->
-            val workerId: String = backStackEntry.arguments?.getString("workerId") ?: return@composable
+            val workerId = backStackEntry.arguments?.getString("workerId") ?: return@composable
             ProfileScreen(
                 userId = workerId,
                 onBack = { navController.popBackStack() }
             )
-        }
-
-        composable("create_job") {
-            // TODO: uncomment and wire up CreateJobScreen params when ready
-            // CreateJobScreen(farmerId = userId, onJobCreated = { navController.popBackStack() }, onBack = { navController.popBackStack() })
         }
 
         composable("notifications") {
@@ -223,9 +196,9 @@ private fun FarmerNavGraph(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Admin Navigation Host
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// Admin
+// ─────────────────────────────────────────────
 
 @Composable
 private fun AdminNavHost(
@@ -237,7 +210,6 @@ private fun AdminNavHost(
 
     Scaffold(
         topBar = {
-            // currentRoute is passed so the title updates on every navigation
             AdminTopBar(
                 currentRoute = currentRoute,
                 onLogout     = onLogout,
@@ -272,8 +244,6 @@ private fun AdminNavHost(
         ) {
             composable(AdminRoutes.DASHBOARD) {
                 AdminDashboardScreen(
-                    // FIX: was a no-op stub — now actually navigates so quick-access
-                    // buttons on the dashboard work correctly.
                     onNavigate = { route ->
                         currentRoute = route
                         navController.navigate(route) {
@@ -283,11 +253,9 @@ private fun AdminNavHost(
                         }
                     },
                     onLogout = onLogout
-                AdminHome(
-                    userEmail = userEmail,
-                    onLogout  = onLogout
                 )
             }
+
             composable(AdminRoutes.USERS) {
                 UsersManagementScreen(onBack = { navController.popBackStack() })
             }
