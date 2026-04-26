@@ -188,9 +188,12 @@ data class UserWithProfile(
     val banned_reason: String? = null,
     val created_at: String? = null,
 
-    // ── from profiles (nullable – left join) ─────────────────
-    val location: String? = null,
-    val skills: List<String>? = null,
-    val image_url: String? = null,
-    val bio: String? = null
-)
+    // ── from profiles (nested object from Supabase join) ─────
+    val profiles: Profile? = null
+) {
+    // Helper properties for flattened access if needed elsewhere
+    val image_url: String? get() = profiles?.image_url
+    val location: String? get() = profiles?.location
+    val bio: String? get() = profiles?.bio
+    val skills: List<String>? get() = profiles?.skills
+}

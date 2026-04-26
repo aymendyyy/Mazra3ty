@@ -11,6 +11,25 @@ import androidx.navigation.compose.*
 import com.mazra3ty.app.ui.admin.*
 import com.mazra3ty.app.ui.component.*
 import com.mazra3ty.app.ui.farmer.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.mazra3ty.app.ui.admin.AdminBottomBar
+import com.mazra3ty.app.ui.admin.AdminDashboardScreen
+import com.mazra3ty.app.ui.admin.AdminTopBar
+import com.mazra3ty.app.ui.admin.AdsMonitorScreen
+import com.mazra3ty.app.ui.admin.ReportsScreen
+import com.mazra3ty.app.ui.admin.ReviewsMonitorScreen
+import com.mazra3ty.app.ui.admin.StatisticsScreen
+import com.mazra3ty.app.ui.admin.UsersManagementScreen
+import com.mazra3ty.app.ui.component.FarmerBottomBar
+import com.mazra3ty.app.ui.component.WorkerBottomBar
+import com.mazra3ty.app.ui.farmer.FarmerHomeScreen
+import com.mazra3ty.app.ui.farmer.FarmerJobsScreen
+import com.mazra3ty.app.ui.farmer.JobDetailScreen
+import com.mazra3ty.app.ui.farmer.NotificationsScreen
+import com.mazra3ty.app.ui.farmer.WorkersPage
+import com.mazra3ty.app.ui.screens.*
 import com.mazra3ty.app.ui.worker.JobsScreen
 import com.mazra3ty.app.ui.screens.*
 
@@ -270,6 +289,11 @@ private fun AdminNavHost(
             }
             composable(AdminRoutes.REPORTS) {
                 ReportsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(AdminScreen.Applications.route) {
+                ApplicationsMonitorScreen(
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }
