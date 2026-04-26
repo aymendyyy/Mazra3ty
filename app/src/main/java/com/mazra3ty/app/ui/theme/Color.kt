@@ -3,7 +3,7 @@ package com.mazra3ty.app.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // 🌿 Primary Greens
-val GreenPrimary = Color(0xFF8BC34A)
+val GreenPrimary = Color(0xFF0C4910)
 val GreenPrimaryDark = Color(0xFF4CAF50)
 val GreenLight = Color(0xFFA5D66D)
 

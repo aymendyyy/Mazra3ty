@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.SupabaseClientProvider
 import com.mazra3ty.app.database.types.Application
 import com.mazra3ty.app.database.types.Job
-import com.mazra3ty.app.database.types.User
+import com.mazra3ty.app.database.types.UserWithProfile
 import com.mazra3ty.app.ui.theme.*
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.launch
@@ -60,7 +60,9 @@ fun ApplicationsMonitorScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     var applications by remember { mutableStateOf<List<Application>>(emptyList()) }
-    var usersMap     by remember { mutableStateOf<Map<String, User>>(emptyMap()) }
+    // FIX: Changed from Map<String, User> to Map<String, UserWithProfile>
+    // This fixes the crash caused by non-nullable email field in User
+    var usersMap     by remember { mutableStateOf<Map<String, UserWithProfile>>(emptyMap()) }
     var jobsMap      by remember { mutableStateOf<Map<String, Job>>(emptyMap()) }
     var isLoading    by remember { mutableStateOf(true) }
     var searchQuery  by remember { mutableStateOf("") }
@@ -72,9 +74,14 @@ fun ApplicationsMonitorScreen(onBack: () -> Unit) {
                 applications = SupabaseClientProvider.client
                     .postgrest["applications"].select().decodeList<Application>()
                     .sortedByDescending { it.created_at }
+
+                // FIX: Use user_with_profile view instead of users table.
+                // UserWithProfile has email as String? (nullable) which prevents
+                // JSON deserialization crashes when email is missing.
                 usersMap = SupabaseClientProvider.client
-                    .postgrest["users"].select().decodeList<User>()
+                    .postgrest["user_with_profile"].select().decodeList<UserWithProfile>()
                     .associateBy { it.id }
+
                 jobsMap = SupabaseClientProvider.client
                     .postgrest["jobs"].select().decodeList<Job>()
                     .associateBy { it.id }
@@ -92,7 +99,8 @@ fun ApplicationsMonitorScreen(onBack: () -> Unit) {
         val matchSearch = q.isEmpty() ||
                 worker?.full_name?.contains(q, true) == true ||
                 farmer?.full_name?.contains(q, true) == true ||
-                job?.title?.contains(q, true) == true
+                job?.title?.contains(q, true) == true ||
+                worker?.role?.contains(q, true) == true   // also search by role
         val matchStatus = statusFilter == null || app.status == statusFilter
         matchSearch && matchStatus
     }
@@ -131,7 +139,7 @@ fun ApplicationsMonitorScreen(onBack: () -> Unit) {
                 OutlinedTextField(
                     value         = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder   = { Text("Worker, farmer, or job title…", color = Color.Gray, fontSize = 13.sp) },
+                    placeholder   = { Text("Worker, farmer, role, or job title…", color = Color.Gray, fontSize = 13.sp) },
                     leadingIcon   = { Icon(Icons.Outlined.Search, null, tint = GreenPrimary, modifier = Modifier.size(20.dp)) },
                     trailingIcon  = {
                         AnimatedVisibility(searchQuery.isNotEmpty()) {
@@ -231,16 +239,16 @@ fun ApplicationsMonitorScreen(onBack: () -> Unit) {
     }
 }
 
-// ─── Application detail card (100% read-only) ────────────────────────────────
+// ─── Application detail card ──────────────────────────────────────────────────
 
 @Composable
 private fun AppDetailCard(
     application: Application,
-    worker:      User?,
+    worker:      UserWithProfile?,   // FIX: was User?
     job:         Job?,
-    farmer:      User?
+    farmer:      UserWithProfile?    // FIX: was User?
 ) {
-    val style  = statusStyle(application.status)
+    val style   = statusStyle(application.status)
     val dateStr = remember(application.created_at) {
         runCatching {
             val instant = Instant.parse(application.created_at ?: return@runCatching null)
@@ -262,7 +270,7 @@ private fun AppDetailCard(
     ) {
         Column {
 
-            // ── Coloured status band ──────────────────────────────────────
+            // ── Status band ───────────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -288,12 +296,13 @@ private fun AppDetailCard(
                 SectionLabel("Participants")
                 Spacer(Modifier.height(10.dp))
 
+                // FIX: Use dynamic role label from actual user data
                 PersonCard(
-                    badge     = "APPLICANT · WORKER",
+                    badge      = "APPLICANT · ${worker?.role?.uppercase() ?: "WORKER"}",
                     badgeColor = Color(0xFF1565C0),
-                    user      = worker,
-                    icon      = Icons.Outlined.Agriculture,
-                    gradient  = listOf(Color(0xFF1565C0).copy(0.07f), Color(0xFF1976D2).copy(0.03f))
+                    user       = worker,
+                    icon       = Icons.Outlined.Agriculture,
+                    gradient   = listOf(Color(0xFF1565C0).copy(0.07f), Color(0xFF1976D2).copy(0.03f))
                 )
 
                 // Connector arrow
@@ -312,12 +321,13 @@ private fun AppDetailCard(
                     }
                 }
 
+                // FIX: Use dynamic role label from actual user data
                 PersonCard(
-                    badge     = "RECIPIENT · FARMER",
+                    badge      = "RECIPIENT · ${farmer?.role?.uppercase() ?: "FARMER"}",
                     badgeColor = Color(0xFF2E7D32),
-                    user      = farmer,
-                    icon      = Icons.Outlined.Yard,
-                    gradient  = listOf(Color(0xFF2E7D32).copy(0.07f), Color(0xFF388E3C).copy(0.03f))
+                    user       = farmer,
+                    icon       = Icons.Outlined.Yard,
+                    gradient   = listOf(Color(0xFF2E7D32).copy(0.07f), Color(0xFF388E3C).copy(0.03f))
                 )
 
                 // ── Job details ────────────────────────────────────────────
@@ -380,7 +390,7 @@ private fun AppDetailCard(
                     }
                 }
 
-                // ── Footer ID ─────────────────────────────────────────────
+                // ── Footer ────────────────────────────────────────────────
                 Spacer(Modifier.height(10.dp))
                 Row(
                     modifier              = Modifier.fillMaxWidth(),
@@ -411,7 +421,7 @@ private fun AppDetailCard(
 private fun PersonCard(
     badge:      String,
     badgeColor: Color,
-    user:       User?,
+    user:       UserWithProfile?,   // FIX: was User?
     icon:       ImageVector,
     gradient:   List<Color>
 ) {
@@ -435,6 +445,7 @@ private fun PersonCard(
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
+            // Badge label (now dynamic with actual role)
             Text(badge, fontSize = 9.sp, color = badgeColor.copy(0.8f), fontWeight = FontWeight.Bold, letterSpacing = 0.4.sp)
             Spacer(Modifier.height(2.dp))
             Text(
@@ -442,6 +453,7 @@ private fun PersonCard(
                 fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF1A1A1A),
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
+            // FIX: phone is String? in UserWithProfile, no crash
             val contact = user?.phone ?: user?.email
             contact?.let {
                 Spacer(Modifier.height(2.dp))
@@ -455,6 +467,7 @@ private fun PersonCard(
                 }
             }
         }
+        // Show actual role badge
         Surface(shape = RoundedCornerShape(20.dp), color = badgeColor.copy(0.1f)) {
             Text(
                 user?.role?.replaceFirstChar { it.uppercase() } ?: "—",

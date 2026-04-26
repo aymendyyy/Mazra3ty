@@ -30,7 +30,6 @@ sealed class AdminScreen(val route: String, val label: String, val icon: ImageVe
     object Reviews      : AdminScreen("admin_reviews",      "Reviews",    Icons.Outlined.RateReview)
     object Reports      : AdminScreen("admin_reports",      "Reports",    Icons.Outlined.Description)
     object Statistics   : AdminScreen("admin_statistics",   "Stats",      Icons.Outlined.BarChart)
-    // Applications is accessible from Dashboard quick-access & notifications
     object Applications : AdminScreen("admin_applications", "Apps",       Icons.Outlined.Assignment)
 }
 
