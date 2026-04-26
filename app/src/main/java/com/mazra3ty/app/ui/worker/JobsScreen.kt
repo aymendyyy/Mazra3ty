@@ -27,8 +27,11 @@ import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 
 @Composable
 fun JobsScreen(
+    userId: String = "",
     userEmail: String = "",
-    userName: String = ""
+    userName: String = "",
+    onViewApplications: () -> Unit = {},
+    onViewMyPosts: () -> Unit = {}
 ) {
     // ===== States =====
     var searchQuery  by remember { mutableStateOf("") }
@@ -175,6 +178,7 @@ fun JobsScreen(
     selectedJob?.let { job ->
         JobDetailSheet(
             job         = job,
+            workerId    = userId,
             workerEmail = userEmail,
             workerName  = userName,
             onDismiss   = { selectedJob = null },

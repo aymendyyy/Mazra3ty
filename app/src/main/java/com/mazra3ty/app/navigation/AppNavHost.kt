@@ -13,6 +13,8 @@ import com.mazra3ty.app.ui.component.*
 import com.mazra3ty.app.ui.farmer.*
 import com.mazra3ty.app.ui.worker.JobsScreen
 import com.mazra3ty.app.ui.screens.*
+import com.mazra3ty.app.ui.worker.WorkerApplicationsScreen
+import com.mazra3ty.app.ui.worker.WorkerMyPostsScreen
 
 @Composable
 fun AppNavHost(
@@ -76,12 +78,52 @@ private fun WorkerNavGraph(
         modifier = modifier
     ) {
         composable(WorkerRoutes.HOME) {
-            JobsScreen()
+            JobsScreen(
+                userId             = userId,
+                onViewApplications = { navController.navigate("worker_applications") },
+                onViewMyPosts      = { navController.navigate("worker_my_posts") }
+            )
         }
         composable(WorkerRoutes.PROFILE) {
             ProfileScreen(
                 userId = userId,
                 onBack = { navController.popBackStack() }
+            )
+        }
+        composable(WorkerRoutes.POSTS) {
+            com.mazra3ty.app.ui.worker.CreateWorkerPostScreen(
+                workerId      = userId,
+                workerName    = "",
+                onPostCreated = { navController.popBackStack() },
+                onBack        = { navController.popBackStack() }
+            )
+            composable("worker_applications") {
+                WorkerApplicationsScreen(
+                    workerId = userId,
+                    onBack   = { navController.popBackStack() }
+                )
+            }
+
+            composable("worker_my_posts") {
+                WorkerMyPostsScreen(
+                    workerId     = userId,
+                    onBack       = { navController.popBackStack() },
+                    onCreatePost = { navController.navigate(WorkerRoutes.POSTS) }
+                )
+            }
+        }
+        composable("worker_applications") {
+            WorkerApplicationsScreen(
+                workerId = userId,
+                onBack   = { navController.popBackStack() }
+            )
+        }
+
+        composable("worker_my_posts") {
+            WorkerMyPostsScreen(
+                workerId     = userId,
+                onBack       = { navController.popBackStack() },
+                onCreatePost = { navController.navigate(WorkerRoutes.POSTS) }
             )
         }
     }

@@ -20,6 +20,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mazra3ty.app.ui.theme.*
 import kotlinx.coroutines.launch
+import com.mazra3ty.app.database.SupabaseClientProvider
+import com.mazra3ty.app.database.types.CreateApplication
+import com.mazra3ty.app.database.types.CreateNotification
+import io.github.jan.supabase.postgrest.postgrest
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN: Job Detail Bottom Sheet
@@ -28,6 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun JobDetailSheet(
     job: Job,
+    workerId: String,
     workerEmail: String,
     workerName: String,
     onDismiss: () -> Unit,
@@ -180,11 +185,37 @@ fun JobDetailSheet(
                 showConfirmDialog = false
                 isApplying        = true
                 scope.launch {
-                    // TODO: هنا تضيف كود Supabase لإرسال الطلب
-                    kotlinx.coroutines.delay(1500)
-                    isApplying = false
-                    isApplied  = true
-                    onApplied()
+                    try {
+                        // 1. أرسل الطلب لجدول applications
+                        SupabaseClientProvider.client
+                            .postgrest["applications"]
+                            .insert(
+                                com.mazra3ty.app.database.types.CreateApplication(
+                                    job_id    = job.id,
+                                    worker_id = workerId,  // ← سنضيفه كمعامل
+                                    status    = "pending"
+                                )
+                            )
+
+                        // 2. أرسل إشعار للمزارع
+                        SupabaseClientProvider.client
+                            .postgrest["notifications"]
+                            .insert(
+                                com.mazra3ty.app.database.types.CreateNotification(
+                                    user_id = job.farmerId,
+                                    title   = "New Application",
+                                    message = "$workerName is interested in your job: ${job.title}",
+                                    type    = "APPLICATION"
+                                )
+                            )
+
+                        isApplying = false
+                        isApplied  = true
+                        kotlinx.coroutines.delay(2000)
+                        onApplied()
+                    } catch (e: Exception) {
+                        isApplying = false
+                    }
                 }
             },
             onDismiss = { showConfirmDialog = false }

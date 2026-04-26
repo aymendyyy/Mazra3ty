@@ -23,6 +23,10 @@ import androidx.compose.ui.unit.sp
 import com.mazra3ty.app.database.types.CreateWorkerPost
 import com.mazra3ty.app.database.types.WorkerPostStatus
 import com.mazra3ty.app.ui.theme.*
+import com.mazra3ty.app.database.SupabaseClientProvider
+import io.github.jan.supabase.postgrest.postgrest
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
 
 // ─── قائمة المهارات المتاحة ────────────────────────────────────────────────────
 
@@ -60,12 +64,29 @@ fun CreateWorkerPostScreen(
     var expectedSalary by remember { mutableStateOf("") }
 
     // ── حالة الواجهة ──
-    var isLoading    by remember { mutableStateOf(false) }
-    var showSuccess  by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var currentStep  by remember { mutableStateOf(0) } // 0=معلومات، 1=مهارات، 2=تفاصيل
-
+    var isLoading         by remember { mutableStateOf(false) }
+    var showSuccess       by remember { mutableStateOf(false) }
+    var errorMessage      by remember { mutableStateOf<String?>(null) }
+    var currentStep       by remember { mutableStateOf(0) }
+    var showSuccessDialog by remember { mutableStateOf(false) }  // ← جديد
+    var canPost           by remember { mutableStateOf(true) }   // ← جديد
+    var checkingLimit     by remember { mutableStateOf(true) }   // ← جديدval scope
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        try {
+            val today = java.time.LocalDate.now().toString()
+            val todayPosts = SupabaseClientProvider.client
+                .postgrest["worker_posts"]
+                .select { filter { eq("worker_id", workerId) } }
+                .decodeList<com.mazra3ty.app.database.types.WorkerPost>()
+                .count { post -> post.created_at?.startsWith(today) == true }
+            canPost = todayPosts == 0
+        } catch (e: Exception) {
+            canPost = true
+        } finally {
+            checkingLimit = false
+        }
+    }
 
     // ── Validation ──
     val isTitleValid    = title.trim().length >= 3
@@ -328,6 +349,35 @@ fun CreateWorkerPostScreen(
                             workerName     = workerName
                         )
 
+                        // ── رسالة الحد اليومي ──
+                        if (!canPost && !checkingLimit) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFFFF3E0)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("⚠️", fontSize = 20.sp)
+                                    Column {
+                                        Text(
+                                            "Daily limit reached",
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize   = 13.sp,
+                                            color      = Color(0xFFE65100)
+                                        )
+                                        Text(
+                                            "You can only post once per day. Come back tomorrow!",
+                                            fontSize = 12.sp,
+                                            color    = Color(0xFF888888)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // ── رسالة خطأ ──
                         AnimatedVisibility(visible = errorMessage != null) {
                             errorMessage?.let { msg ->
@@ -365,10 +415,10 @@ fun CreateWorkerPostScreen(
             StepNavigationButtons(
                 currentStep  = currentStep,
                 totalSteps   = 3,
-                canGoNext    = when (currentStep) {
+                canGoNext = when (currentStep) {
                     0    -> step0Valid
                     1    -> step1Valid
-                    else -> canSubmit
+                    else -> canSubmit && canPost
                 },
                 isLoading    = isLoading,
                 showSuccess  = showSuccess,
@@ -380,7 +430,7 @@ fun CreateWorkerPostScreen(
                         currentStep++
                     }
                 },
-                onPublish    = {
+                onPublish = {
                     isLoading    = true
                     errorMessage = null
                     val post = CreateWorkerPost(
@@ -391,30 +441,64 @@ fun CreateWorkerPostScreen(
                             if (availability.isNotBlank()) append("\n\n⏰ Availability: ${availability.trim()}")
                             if (expectedSalary.isNotBlank()) append("\n💰 Expected: ${expectedSalary} DA/day")
                         },
-                        skills      = selectedSkills,
-                        location    = location.trim().ifEmpty { null },
-                        status      = WorkerPostStatus.active
+                        skills   = selectedSkills,
+                        location = location.trim().ifEmpty { null },
+                        status   = WorkerPostStatus.active
                     )
-                    // TODO: استدعاء Supabase هنا
-                    // scope.launch {
-                    //     try {
-                    //         supabase.postgrest["worker_posts"].insert(post)
-                    //         showSuccess = true
-                    //         delay(800)
-                    //         onPostCreated()
-                    //     } catch (e: Exception) {
-                    //         errorMessage = e.message ?: "Failed to publish"
-                    //     } finally {
-                    //         isLoading = false
-                    //     }
-                    // }
-
-                    // ── مؤقت حتى يُوصَّل Supabase ──
-                    showSuccess = true
-                    isLoading   = false
+                    scope.launch {
+                        try {
+                            SupabaseClientProvider.client
+                                .postgrest["worker_posts"]
+                                .insert(post)
+                            isLoading         = false
+                            showSuccessDialog = true
+                        } catch (e: Exception) {
+                            errorMessage = e.message ?: "Failed to publish"
+                            isLoading    = false
+                        }
+                    }
                 }
             )
         }
+    }
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        title          = ""
+                        description    = ""
+                        location       = ""
+                        selectedSkills = emptyList()
+                        availability   = ""
+                        expectedSalary = ""
+                        currentStep    = 0
+                        canPost        = false
+                        onPostCreated()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = GreenPrimary)
+                ) { Text("Great!") }
+            },
+            icon  = { Text("🎉", fontSize = 40.sp) },
+            title = {
+                Text(
+                    "Post Published!",
+                    fontWeight = FontWeight.Bold,
+                    textAlign  = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            },
+            text = {
+                Text(
+                    "Your post is now live. Farmers can see it and contact you.",
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    color     = Color(0xFF555555)
+                )
+            },
+            containerColor = Color.White,
+            shape          = RoundedCornerShape(20.dp)
+        )
     }
 }
 
@@ -687,37 +771,50 @@ private fun SkillsGrid(
     selectedSkills: List<String>,
     onToggle: (String) -> Unit
 ) {
-    FlowRow(
-        modifier              = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement   = Arrangement.spacedBy(8.dp)
+    val rows = skills.chunked(2)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        skills.forEach { skill ->
-            val isSelected = skill in selectedSkills
-            Surface(
-                onClick = { onToggle(skill) },
-                shape   = RoundedCornerShape(24.dp),
-                color   = if (isSelected) GreenPrimary else Color(0xFFF5F5F5),
-                border  = if (isSelected) null else BorderStroke(1.dp, Color(0xFFDDDDDD))
+        rows.forEach { rowSkills ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier          = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (isSelected) {
-                        Icon(
-                            Icons.Outlined.Check, null,
-                            tint     = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
+                rowSkills.forEach { skill ->
+                    val isSelected = skill in selectedSkills
+                    Surface(
+                        onClick  = { onToggle(skill) },
+                        shape    = RoundedCornerShape(24.dp),
+                        color    = if (isSelected) GreenPrimary else Color(0xFFF5F5F5),
+                        border   = if (isSelected) null else BorderStroke(1.dp, Color(0xFFDDDDDD)),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Outlined.Check, null,
+                                    tint     = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(
+                                skill,
+                                fontSize   = 12.sp,
+                                color      = if (isSelected) Color.White else Color(0xFF444444),
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
                     }
-                    Text(
-                        skill,
-                        fontSize   = 13.sp,
-                        color      = if (isSelected) Color.White else Color(0xFF444444),
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
+                }
+                // لو الصف فيه عنصر واحد فقط أضف spacer
+                if (rowSkills.size == 1) {
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }

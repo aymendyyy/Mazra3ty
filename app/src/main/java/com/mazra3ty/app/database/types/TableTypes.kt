@@ -194,3 +194,12 @@ data class UserWithProfile(
     val image_url: String? = null,
     val bio: String? = null
 )
+
+///bakir///
+@Serializable
+data class CreateApplication(
+    val job_id: String,      // رقم الوظيفة التي تقدم إليها
+    val worker_id: String,   // رقم العامل الذي تقدم
+    val status: String = "pending"  // حالة الطلب = "قيد الانتظار" افتراضياً
+)
+///bakir///
